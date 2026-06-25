@@ -210,12 +210,25 @@ elif pagina == "4. Generar documentos":
             fecha_fin_vac = st.date_input("Fecha fin", value=date.today())
 
     fecha_corte_liq = None
+    motivo_retiro = "renuncia"
     if gen_liquidacion:
         usar_retiro = st.checkbox(
             "Usar 'Fecha retiro' del Excel cuando exista (si está vacía, se usa la fecha de corte de abajo)",
             value=True,
         )
         fecha_corte_liq = st.date_input("Fecha de corte para liquidación (empleados activos)", value=date.today())
+        motivo_retiro = st.selectbox(
+            "Motivo de retiro (afecta si aplica indemnización)",
+            options=["renuncia", "despido_sin_justa_causa", "mutuo_acuerdo", "vencimiento_contrato"],
+            format_func=lambda x: {
+                "renuncia": "Renuncia voluntaria (sin indemnización)",
+                "despido_sin_justa_causa": "Despido sin justa causa (con indemnización Art. 64 CST)",
+                "mutuo_acuerdo": "Mutuo acuerdo (sin indemnización)",
+                "vencimiento_contrato": "Vencimiento de contrato (sin indemnización)",
+            }[x],
+        )
+        if motivo_retiro == "despido_sin_justa_causa":
+            st.warning("⚠️ La indemnización por despido sin justa causa es una estimación. Valídala con un abogado laboral antes de usarla.")
 
     st.divider()
 
