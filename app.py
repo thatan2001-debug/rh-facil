@@ -203,74 +203,136 @@ elif pagina == "🏢  Mi empresa":
             st.markdown(instrucciones_gmail())
 
 # ══════════════════════════════════════════════════════════════════════════════
-# DISEÑO DE PLANTILLAS
+# DISEÑO DE PLANTILLAS — Galería con previsualizaciones reales
 # ══════════════════════════════════════════════════════════════════════════════
 elif pagina == "🎨  Diseño de plantillas":
+    from utils.preview_disenios import generar_previews, limpiar_previews, EMPRESA_DEMO
+    from utils.plantillas_disenio import PALETAS
+
     st.markdown("# Elige el diseño de tus documentos")
-    st.markdown("<p style='color:#6B7280'>Selecciona la plantilla que mejor represente tu empresa. Aplica a certificados, vacaciones y liquidaciones.</p>", unsafe_allow_html=True)
-    st.divider()
+    st.markdown(
+        "<p style='color:#6B7280'>Mira exactamente cómo va a quedar cada documento "
+        "antes de decidir. Elige el diseño predeterminado para tu empresa.</p>",
+        unsafe_allow_html=True,
+    )
 
-    # Mostrar los 5 diseños como cards visuales
-    cols = st.columns(5)
-    for i, col in enumerate(cols, 1):
-        paleta = PALETAS[i]
-        p_hex  = paleta["primario"].hexval() if hasattr(paleta["primario"],"hexval") else "#1B3F6E"
-        s_hex  = paleta["secundario"].hexval() if hasattr(paleta["secundario"],"hexval") else "#2D6BE4"
-        a_hex  = paleta["acento"].hexval() if hasattr(paleta["acento"],"hexval") else "#EFF6FF"
-        seleccionado = st.session_state.disenio_seleccionado == i
-
-        with col:
-            st.markdown(f"""
-            <div style="border:3px solid {'#2D6BE4' if seleccionado else '#E5E7EB'};
-                border-radius:12px;overflow:hidden;margin-bottom:8px;
-                box-shadow:{'0 0 0 3px #DBEAFE' if seleccionado else 'none'}">
-                <div style="background:{p_hex};padding:14px;text-align:center">
-                    <div style="color:white;font-weight:700;font-size:0.85rem">EMPRESA S.A.S</div>
-                    <div style="color:rgba(255,255,255,0.7);font-size:0.7rem">NIT #900.123.456</div>
-                </div>
-                <div style="background:white;padding:10px">
-                    <div style="background:{a_hex};border-left:3px solid {s_hex};
-                        padding:6px 8px;margin-bottom:6px;font-size:0.7rem;color:#374151">
-                        Certificación Laboral
-                    </div>
-                    <div style="height:4px;background:{s_hex};border-radius:2px;width:60%;margin-bottom:4px"></div>
-                    <div style="height:3px;background:#E5E7EB;border-radius:2px;width:80%;margin-bottom:4px"></div>
-                    <div style="height:3px;background:#E5E7EB;border-radius:2px;width:70%"></div>
-                    <div style="margin-top:8px;padding-top:6px;border-top:1px solid #E5E7EB;
-                        font-size:0.65rem;color:#6B7280">Representante Legal</div>
-                </div>
-            </div>
-            <div style="text-align:center;font-size:0.78rem;font-weight:{'700' if seleccionado else '400'};
-                color:{'#1B3F6E' if seleccionado else '#6B7280'}">
-                {'✅ ' if seleccionado else ''}Diseño {i}<br>{paleta['nombre']}
-            </div>""", unsafe_allow_html=True)
-
-            if st.button(f"{'✓ Seleccionado' if seleccionado else 'Seleccionar'}",
-                         key=f"btn_d{i}", use_container_width=True,
-                         type="primary" if seleccionado else "secondary"):
-                st.session_state.disenio_seleccionado = i
-                st.rerun()
+    # ── Controles superiores ─────────────────────────────────────────────────
+    c1, c2, c3 = st.columns([2, 2, 2])
+    with c1:
+        tipo_preview = st.radio(
+            "Ver previsualización de:",
+            ["📋 Certificado laboral", "💰 Liquidación"],
+            horizontal=True,
+        )
+    with c3:
+        if st.button("🔄 Regenerar previsualizaciones"):
+            limpiar_previews()
+            st.session_state.pop("previews_cert", None)
+            st.session_state.pop("previews_liq", None)
+            st.rerun()
 
     st.divider()
-    d = st.session_state.disenio_seleccionado
-    st.info(f"🎨 Diseño activo: **{nombre_disenio(d)}** — Se aplicará a todos los documentos que generes.")
 
-    # Generar PDF de muestra
-    if empresa_ok:
-        if st.button("👁️ Generar documento de muestra con este diseño", type="primary"):
-            from utils.calcular_liquidacion import calcular_liquidacion_fila
-            emp_demo = {"Nombre":"Ejemplo Empleado","Documento":"1000000001",
-                "Cargo":"Auxiliar Administrativo","Salario":1800000,
-                "Fecha ingreso":"01/01/2024","Tipo contrato":"Indefinido",
-                "Ingreso promedio variable":0}
-            ruta_demo = str(CARPETA_SALIDAS / f"muestra_disenio_{d}.pdf")
-            generar_certificado(emp_demo, st.session_state.datos_empresa, ruta_demo, d)
-            with open(ruta_demo,"rb") as f:
-                st.download_button("⬇️ Descargar muestra (PDF)",f,
-                    file_name=f"muestra_{nombre_disenio(d).replace(' ','_')}.pdf",
-                    mime="application/pdf", type="primary")
-    else:
-        st.info("💡 Completa los datos de tu empresa para generar una muestra con tu logo y nombre.")
+    # ── Generar o recuperar previews (se cachean en session_state) ───────────
+    if "previews_cert" not in st.session_state or "previews_liq" not in st.session_state:
+        with st.spinner("Generando previsualizaciones de los 5 diseños… (solo la primera vez)"):
+            certs, liqs = generar_previews(forzar=False)
+            st.session_state.previews_cert = certs
+            st.session_state.previews_liq  = liqs
+
+    previews = (st.session_state.previews_cert
+                if "Certificado" in tipo_preview
+                else st.session_state.previews_liq)
+
+    # ── Galería: 5 diseños en 2 filas ────────────────────────────────────────
+    # Fila 1: diseños 1, 2, 3
+    nombres_disenios = {d: PALETAS[d]["nombre"] for d in range(1, 6)}
+    disenio_actual = st.session_state.disenio_seleccionado
+
+    st.markdown(
+        f"<p style='color:#374151;font-size:.9rem'>✅ Diseño predeterminado actual: "
+        f"<b>#{disenio_actual} — {nombres_disenios[disenio_actual]}</b></p>",
+        unsafe_allow_html=True,
+    )
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    for fila_disenios in [[1, 2, 3], [4, 5]]:
+        cols = st.columns(len(fila_disenios))
+        for col, d in zip(cols, fila_disenios):
+            seleccionado = disenio_actual == d
+            png = previews.get(d)
+
+            with col:
+                # Marco de selección
+                borde_color = "#2D6BE4" if seleccionado else "#E5E7EB"
+                sombra = "0 0 0 3px #DBEAFE, 0 4px 16px rgba(45,107,228,.15)" if seleccionado else "0 2px 8px rgba(0,0,0,.06)"
+
+                st.markdown(
+                    f'<div style="border:3px solid {borde_color};border-radius:14px;'
+                    f'overflow:hidden;box-shadow:{sombra};margin-bottom:8px">',
+                    unsafe_allow_html=True,
+                )
+
+                if png and Path(png).exists():
+                    st.image(png, use_container_width=True)
+                else:
+                    st.markdown(
+                        '<div style="height:300px;background:#F9FAFB;display:flex;'
+                        'align-items:center;justify-content:center;color:#9CA3AF">'
+                        'Sin preview disponible</div>',
+                        unsafe_allow_html=True,
+                    )
+
+                st.markdown("</div>", unsafe_allow_html=True)
+
+                # Nombre y badge
+                badge = "✅ Predeterminado" if seleccionado else f"Diseño {d}"
+                color_badge = "#1B3F6E" if seleccionado else "#6B7280"
+                peso = "700" if seleccionado else "400"
+                st.markdown(
+                    f'<div style="text-align:center;margin:4px 0 8px;'
+                    f'font-size:.82rem;font-weight:{peso};color:{color_badge}">'
+                    f'{badge}<br><span style="font-weight:400;font-size:.78rem;color:#9CA3AF">'
+                    f'{nombres_disenios[d]}</span></div>',
+                    unsafe_allow_html=True,
+                )
+
+                # Botón seleccionar / descargar muestra
+                if seleccionado:
+                    # Descargar PDF real con datos de la empresa del usuario
+                    from utils.plantillas_disenio import generar_certificado as _gc
+                    from utils.preview_disenios import EMPLEADO_DEMO
+                    emp_datos = st.session_state.datos_empresa if empresa_ok else EMPRESA_DEMO
+                    ruta_m = str(CARPETA_SALIDAS / f"muestra_d{d}.pdf")
+                    try:
+                        _gc(EMPLEADO_DEMO, emp_datos, ruta_m, d)
+                        with open(ruta_m, "rb") as f_pdf:
+                            st.download_button(
+                                "⬇️ Descargar muestra PDF",
+                                f_pdf, use_container_width=True,
+                                file_name=f"muestra_{nombres_disenios[d].replace(' ','_')}.pdf",
+                                mime="application/pdf",
+                            )
+                    except Exception:
+                        st.caption("Error generando muestra")
+                else:
+                    if st.button(
+                        f"Usar este diseño", key=f"sel_{d}",
+                        use_container_width=True, type="secondary",
+                    ):
+                        st.session_state.disenio_seleccionado = d
+                        st.rerun()
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+    st.divider()
+    st.info(
+        f"🎨 Diseño **#{disenio_actual} — {nombres_disenios[disenio_actual]}** "
+        f"será aplicado a todos tus certificados, cartas de vacaciones y liquidaciones. "
+        f"Puedes cambiarlo en cualquier momento."
+    )
+    if not empresa_ok:
+        st.caption("💡 Completa los datos de tu empresa para que las muestras descargables incluyan tu nombre y NIT.")
 
 # ══════════════════════════════════════════════════════════════════════════════
 # EMPLEADOS
