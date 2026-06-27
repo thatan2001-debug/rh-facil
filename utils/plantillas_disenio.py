@@ -85,28 +85,83 @@ def _estilos_para(paleta: dict) -> dict:
     }
 
 
-# ── Marca de agua en fondo ────────────────────────────────────────────────────
-def _dibujar_marca_agua(canvas_obj, doc, logo_path: str):
-    """Dibuja el logo semitransparente centrado en la página como marca de agua."""
+# ── Logo con transparencia real via PIL ──────────────────────────────────────
+def _logo_con_opacidad(logo_path: str, opacidad: float = 0.45) -> str:
+    """
+    Genera una copia del logo con opacidad reducida a nivel de píxel (PIL).
+    setFillAlpha de ReportLab NO afecta imágenes rasterizadas — hay que
+    modificar el canal alpha directamente con PIL.
+    Cachea el resultado en assets/ para no regenerarlo en cada llamada.
+    """
+    try:
+        from PIL import Image as PILImage
+        Path("assets").mkdir(exist_ok=True)
+        cache = str(Path("assets") / f"logo_enc_{int(opacidad*100)}.png")
+        # Usar caché si ya existe y el logo no cambió
+        if Path(cache).exists():
+            return cache
+        img = PILImage.open(logo_path).convert("RGBA")
+        r, g, b, a = img.split()
+        a_nuevo = a.point(lambda px: int(px * opacidad))
+        PILImage.merge("RGBA", (r, g, b, a_nuevo)).save(cache, "PNG")
+        return cache
+    except Exception as e:
+        print(f"Aviso: no se pudo aplicar transparencia al logo ({e}). Usando original.")
+        return logo_path
+
+
+def _dibujar_logo_encabezado(canvas_obj, doc, logo_path: str,
+                              x: float, y: float, w: float, h: float,
+                              opacidad: float = 0.45):
+    """
+    Dibuja el logo semitransparente en el encabezado.
+    Usa PIL para modificar el canal alpha real de la imagen.
+    """
     if not logo_path or not Path(logo_path).exists():
         return
     try:
+        logo_proc = _logo_con_opacidad(logo_path, opacidad)
         canvas_obj.saveState()
-        canvas_obj.setFillAlpha(0.07)
-        img_w = 10 * cm
-        img_h = 10 * cm
-        x = (ANCHO_PAGINA - img_w) / 2
-        y = (ALTO_PAGINA - img_h) / 2
-        canvas_obj.drawImage(logo_path, x, y, width=img_w, height=img_h,
-                             mask="auto", preserveAspectRatio=True)
+        canvas_obj.drawImage(
+            logo_proc, x, y, width=w, height=h,
+            mask="auto", preserveAspectRatio=True, anchor="c",
+        )
         canvas_obj.restoreState()
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"Error dibujando logo: {e}")
 
 
-def _pie(canvas_obj, doc, paleta: dict, logo_path: str = None, usar_marca_agua: bool = False):
+def _dibujar_marca_agua(canvas_obj, doc, logo_path: str):
+    """Logo centrado al 7% de opacidad como fondo de página."""
+    _dibujar_logo_encabezado(
+        canvas_obj, doc, logo_path,
+        x=(ANCHO_PAGINA - 10*cm) / 2,
+        y=(ALTO_PAGINA  - 10*cm) / 2,
+        w=10*cm, h=10*cm, opacidad=0.07,
+    )
+
+
+def _pie(canvas_obj, doc, paleta: dict, logo_path: str = None,
+         usar_marca_agua: bool = False,
+         logo_enc_x: float = None, logo_enc_y: float = None,
+         logo_enc_w: float = 2.8*cm, logo_enc_h: float = 2.8*cm):
+    """
+    Dibuja pie de página. También dibuja:
+    - Logo en encabezado (semitransparente, 45%) si logo_enc_x/y están definidos
+    - Marca de agua de fondo si usar_marca_agua=True
+    """
+    # Logo en encabezado (semitransparente)
+    if logo_path and logo_enc_x is not None:
+        _dibujar_logo_encabezado(
+            canvas_obj, doc, logo_path,
+            x=logo_enc_x, y=logo_enc_y,
+            w=logo_enc_w, h=logo_enc_h,
+            opacidad=0.45,
+        )
+    # Marca de agua de fondo
     if usar_marca_agua and logo_path:
         _dibujar_marca_agua(canvas_obj, doc, logo_path)
+
     canvas_obj.saveState()
     canvas_obj.setStrokeColor(paleta["borde"])
     canvas_obj.line(2*cm, 1.6*cm, letter[0]-2*cm, 1.6*cm)
@@ -123,9 +178,9 @@ def _pie(canvas_obj, doc, paleta: dict, logo_path: str = None, usar_marca_agua: 
 def _encabezado(el, datos_empresa, estilos, paleta, disenio,
                 logo_derecha: bool = True, membrete_path: str = None):
     """
-    Encabezado adaptado según diseño.
-    Si hay membrete_path (imagen extraída del Word), úsalo como encabezado completo.
-    Si hay logo: izquierda=nombre+NIT, derecha=logo.
+    Encabezado: Nombre+NIT a la izquierda.
+    El logo se reserva como espacio vacío — lo dibuja el canvas con opacidad 45%
+    para lograr el efecto de membrete suave.
     """
     nombre = datos_empresa.get("nombre", "")
     nit    = datos_empresa.get("nit", "")
@@ -134,18 +189,19 @@ def _encabezado(el, datos_empresa, estilos, paleta, disenio,
     # ── Membrete personalizado desde Word ────────────────────────────────
     if membrete_path and Path(membrete_path).exists():
         try:
-            img = Image.open(membrete_path) if False else None  # solo verificar
             img_elem = Image(membrete_path, width=17*cm, height=3.5*cm)
             img_elem.hAlign = "CENTER"
             el.append(img_elem)
-            el.append(HRFlowable(width="100%", thickness=1, color=paleta["primario"], spaceAfter=10))
+            el.append(HRFlowable(width="100%", thickness=1,
+                color=paleta["primario"], spaceAfter=10))
             return
         except Exception:
             pass
 
-    # ── Encabezado estándar: texto izq + logo der ─────────────────────────
     col_texto_w = 11*cm
     col_logo_w  = 5.5*cm
+    # Celda derecha vacía — el canvas dibujará el logo ahí semitransparente
+    celda_logo = Paragraph("", ParagraphStyle("vacio"))
 
     texto_izq = [
         Paragraph(f"<b>{nombre}</b>",
@@ -155,39 +211,20 @@ def _encabezado(el, datos_empresa, estilos, paleta, disenio,
             ParagraphStyle("nn", fontSize=9, textColor=paleta["gris"])),
     ]
 
-    if logo and Path(logo).exists() and logo_derecha:
-        try:
-            logo_img = Image(logo, width=3.2*cm, height=3.2*cm)
-            logo_img.hAlign = "RIGHT"
-            fila = [[texto_izq, logo_img]]
-            t = Table(fila, colWidths=[col_texto_w, col_logo_w])
-        except Exception:
-            fila = [[texto_izq, Paragraph("", ParagraphStyle("e"))]]
-            t = Table(fila, colWidths=[col_texto_w, col_logo_w])
-    else:
-        fila = [[texto_izq, Paragraph("", ParagraphStyle("e"))]]
-        t = Table(fila, colWidths=[col_texto_w, col_logo_w])
-
+    fila = [[texto_izq, celda_logo]]
+    t = Table(fila, colWidths=[col_texto_w, col_logo_w])
     t.setStyle(TableStyle([
-        ("VALIGN", (0,0), (-1,-1), "MIDDLE"),
-        ("ALIGN",  (1,0), (1,0),   "RIGHT"),
+        ("VALIGN",       (0,0), (-1,-1), "MIDDLE"),
         ("LEFTPADDING",  (0,0), (-1,-1), 0),
         ("RIGHTPADDING", (0,0), (-1,-1), 0),
         ("TOPPADDING",   (0,0), (-1,-1), 0),
         ("BOTTOMPADDING",(0,0), (-1,-1), 4),
+        # Reservar altura mínima para el logo (2.8cm = ~79pt)
+        ("MINROWHEIGHT", (0,0), (-1,-1), 2.8*cm),
     ]))
 
-    # Variaciones visuales por diseño
     if disenio == 1:
-        wrapper = Table([[t]], colWidths=[17*cm])
-        wrapper.setStyle(TableStyle([
-            ("BACKGROUND",    (0,0), (-1,-1), paleta["primario"]),
-            ("TOPPADDING",    (0,0), (-1,-1), 10),
-            ("BOTTOMPADDING", (0,0), (-1,-1), 10),
-            ("LEFTPADDING",   (0,0), (-1,-1), 12),
-            ("RIGHTPADDING",  (0,0), (-1,-1), 12),
-        ]))
-        # Texto en blanco para diseño 1
+        # Fondo azul — texto en blanco
         texto_blanco = [
             Paragraph(f"<b><font color='white'>{nombre}</font></b>",
                 ParagraphStyle("hb", fontSize=13, fontName="Helvetica-Bold",
@@ -195,33 +232,25 @@ def _encabezado(el, datos_empresa, estilos, paleta, disenio,
             Paragraph(f"<font color='white'>Nit #{nit}</font>",
                 ParagraphStyle("nb", fontSize=9, textColor=colors.white)),
         ]
-        if logo and Path(logo).exists():
-            try:
-                logo_img = Image(logo, width=2.8*cm, height=2.8*cm)
-                fila_b = [[texto_blanco, logo_img]]
-            except Exception:
-                fila_b = [[texto_blanco, Paragraph("", ParagraphStyle("e"))]]
-        else:
-            fila_b = [[texto_blanco, Paragraph("", ParagraphStyle("e"))]]
-
-        t_b = Table(fila_b, colWidths=[col_texto_w, col_logo_w])
+        t_b = Table([[texto_blanco, celda_logo]],
+                    colWidths=[col_texto_w, col_logo_w])
         t_b.setStyle(TableStyle([
-            ("VALIGN", (0,0), (-1,-1), "MIDDLE"),
-            ("ALIGN",  (1,0), (1,0),   "RIGHT"),
+            ("VALIGN",       (0,0), (-1,-1), "MIDDLE"),
             ("LEFTPADDING",  (0,0), (-1,-1), 0),
             ("RIGHTPADDING", (0,0), (-1,-1), 0),
             ("TOPPADDING",   (0,0), (-1,-1), 0),
             ("BOTTOMPADDING",(0,0), (-1,-1), 0),
+            ("MINROWHEIGHT", (0,0), (-1,-1), 2.8*cm),
         ]))
-        wrapper2 = Table([[t_b]], colWidths=[17*cm])
-        wrapper2.setStyle(TableStyle([
+        wrapper = Table([[t_b]], colWidths=[17*cm])
+        wrapper.setStyle(TableStyle([
             ("BACKGROUND",    (0,0), (-1,-1), paleta["primario"]),
             ("TOPPADDING",    (0,0), (-1,-1), 10),
             ("BOTTOMPADDING", (0,0), (-1,-1), 10),
             ("LEFTPADDING",   (0,0), (-1,-1), 12),
             ("RIGHTPADDING",  (0,0), (-1,-1), 12),
         ]))
-        el.append(wrapper2)
+        el.append(wrapper)
         el.append(Spacer(1, 8))
     elif disenio in (4, 5):
         el.append(t)
