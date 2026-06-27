@@ -332,7 +332,77 @@ elif pagina == "🎨  Diseño de plantillas":
         f"Puedes cambiarlo en cualquier momento."
     )
     if not empresa_ok:
-        st.caption("💡 Completa los datos de tu empresa para que las muestras descargables incluyan tu nombre y NIT.")
+        st.caption("💡 Completa los datos de tu empresa para que las muestras incluyan tu nombre y NIT.")
+
+    st.divider()
+
+    # ── Opciones avanzadas de personalización ────────────────────────────
+    st.markdown("### ⚙️ Opciones de personalización")
+
+    with st.expander("🖼️ Logo: posición y marca de agua", expanded=True):
+        c1, c2 = st.columns(2)
+        with c1:
+            usar_mda = st.checkbox(
+                "Usar logo como **marca de agua** (fondo semitransparente)",
+                value=st.session_state.get("usar_marca_agua", False),
+                help="El logo aparecerá tenuemente en el fondo de cada página",
+            )
+            st.session_state.usar_marca_agua = usar_mda
+            if usar_mda and st.session_state.datos_empresa.get("logo_path"):
+                st.caption("✅ Marca de agua activada — el logo aparecerá al 7% de opacidad en el fondo")
+            elif usar_mda:
+                st.caption("⚠️ Sube el logo en 'Mi empresa' para activar la marca de agua")
+        with c2:
+            if st.session_state.datos_empresa.get("logo_path"):
+                st.image(st.session_state.datos_empresa["logo_path"],
+                         width=100, caption="Logo actual (aparece en esquina derecha)")
+
+    with st.expander("📄 Membrete personalizado desde Word (certificados y cartas)", expanded=False):
+        st.markdown(
+            "Si tu empresa ya tiene un documento Word con su **membrete oficial**, "
+            "súbelo aquí. El sistema extraerá el encabezado y lo usará en lugar del "
+            "encabezado estándar para certificados y cartas de vacaciones."
+        )
+        word_file = st.file_uploader(
+            "Sube tu Word con membrete (.docx)", type=["docx"],
+            key="word_membrete",
+        )
+        if word_file:
+            from utils.membrete import extraer_membrete_word
+            ruta_word_tmp = str(CARPETA_ASSETS / "membrete_uploaded.docx")
+            with open(ruta_word_tmp, "wb") as f:
+                f.write(word_file.getbuffer())
+            with st.spinner("Extrayendo membrete del Word..."):
+                ruta_membrete, msg_membrete = extraer_membrete_word(ruta_word_tmp)
+            if ruta_membrete:
+                st.success(f"✅ {msg_membrete}")
+                st.image(ruta_membrete, caption="Membrete extraído — así aparecerá en tus documentos")
+                st.session_state.membrete_path = ruta_membrete
+            else:
+                st.warning(f"⚠️ {msg_membrete}")
+                st.session_state.membrete_path = None
+
+        if st.session_state.get("membrete_path"):
+            if st.button("❌ Quitar membrete personalizado"):
+                st.session_state.membrete_path = None
+                st.rerun()
+            st.caption(f"✅ Membrete activo: {Path(st.session_state.membrete_path).name}")
+
+    with st.expander("✍️ Firmas en liquidación", expanded=False):
+        st.markdown("En la liquidación de prestaciones sociales, ¿quién debe firmar?")
+        opcion_firmas = st.radio(
+            "Firmas en la liquidación:",
+            ["Solo representante legal",
+             "Representante legal Y empleado (recomendado — deja constancia del recibido)"],
+            index=1,
+            key="opcion_firmas_liq",
+        )
+        st.session_state.firma_empleado_liq = "empleado" in opcion_firmas.lower()
+        st.caption(
+            "✅ La línea de firma aparece **encima** del nombre, tal como lo indicaste."
+            if st.session_state.get("firma_empleado_liq") else
+            "Solo la firma del representante legal."
+        )
 
 # ══════════════════════════════════════════════════════════════════════════════
 # EMPLEADOS
