@@ -50,8 +50,11 @@ PALETAS = {
 #   Inferior:   3.0cm
 #   Izquierdo:  3.5cm (extra para archivado/carpeteado sin dañar texto)
 #   Derecho:    2.5cm
-MARGEN_SUP_NORMAL   = 3.0 * cm
-MARGEN_SUP_MEMBRETE = 4.0 * cm   # cuando hay membrete/logo grande
+MARGEN_SUP_NORMAL   = 2.5 * cm   # margen compacto estándar
+MARGEN_SUP_MEMBRETE = 2.5 * cm   # igual — el membrete va dentro del flujo Platypus
+# Nota: antes se usaba 4.0cm cuando había logo, pero como el encabezado
+# (con logo incluido) va dentro del flujo de contenido, el margen superior
+# debe ser el mismo siempre. El espacio extra lo da el propio bloque del encabezado.
 MARGEN_INF          = 3.0 * cm
 MARGEN_IZQ          = 3.5 * cm
 MARGEN_DER          = 2.5 * cm
@@ -85,7 +88,7 @@ def _estilos_para(paleta: dict) -> dict:
             fontSize=9, textColor=paleta["gris"], spaceAfter=4),
         "titulo": ParagraphStyle("titulo", parent=base["Normal"],
             fontSize=13, fontName="Helvetica-Bold", alignment=TA_CENTER,
-            textColor=paleta["primario"], spaceBefore=8, spaceAfter=14),
+            textColor=paleta["primario"], spaceBefore=4, spaceAfter=10),
         "cuerpo": ParagraphStyle("cuerpo", parent=base["Normal"],
             fontSize=11, leading=16.5,           # 11pt × 1.5 = 16.5pt interlineado
             alignment=TA_JUSTIFY, spaceAfter=11,
@@ -220,86 +223,142 @@ def _logo_platypus(logo_path: str, w: float, h: float, opacidad: float = 0.45):
 def _encabezado(el, datos_empresa, estilos, paleta, disenio,
                 logo_derecha: bool = True, membrete_path: str = None):
     """
-    Encabezado: Nombre+NIT a la izquierda | Logo (semitransparente) a la derecha.
-    El logo se inserta directamente como Image en el flujo platypus
-    con transparencia real aplicada via PIL — esto garantiza que siempre aparezca.
+    Estructura real según imagen de referencia:
+    1. Logo en esquina superior derecha (tamaño generoso, semitrasp.)
+    2. Bloque de color ancho con Nombre + NIT en blanco debajo del logo
+    3. Pequeño espacio antes del título
     """
     nombre = datos_empresa.get("nombre", "")
     nit    = datos_empresa.get("nit", "")
     logo   = datos_empresa.get("logo_path") if logo_derecha else None
+    tiene_logo = bool(logo and Path(logo).exists())
 
-    # ── Membrete personalizado desde Word ────────────────────────────────
+    # ── Membrete personalizado desde Word (reemplaza todo el encabezado) ──
     if membrete_path and Path(membrete_path).exists():
         try:
             img_elem = Image(membrete_path, width=ANCHO_UTIL, height=3.5*cm)
             img_elem.hAlign = "CENTER"
             el.append(img_elem)
             el.append(HRFlowable(width="100%", thickness=1,
-                color=paleta["primario"], spaceAfter=10))
+                color=paleta["primario"], spaceAfter=8))
             return
         except Exception:
             pass
 
-    col_logo_w  = 4.0*cm
-    col_texto_w = ANCHO_UTIL - col_logo_w
-
-    # Elemento logo: Image real con transparencia, o celda vacía
-    tiene_logo = bool(logo and Path(logo).exists())
-    celda_logo = _logo_platypus(logo, w=3.5*cm, h=3.5*cm, opacidad=0.45) if tiene_logo \
-                 else Paragraph("", ParagraphStyle("vacio"))
-
-    texto_izq = [
-        Paragraph(f"<b>{nombre}</b>",
-            ParagraphStyle("hn", fontSize=13, fontName="Helvetica-Bold",
-                textColor=paleta["primario"])),
-        Paragraph(f"Nit #{nit}",
-            ParagraphStyle("nn", fontSize=9, textColor=paleta["gris"])),
-    ]
-
-    if disenio == 1:
-        # Fondo azul — texto en blanco, logo con fondo transparente
-        texto_blanco = [
-            Paragraph(f"<b><font color='white'>{nombre}</font></b>",
-                ParagraphStyle("hb", fontSize=13, fontName="Helvetica-Bold",
-                    textColor=colors.white)),
-            Paragraph(f"<font color='white'>Nit #{nit}</font>",
-                ParagraphStyle("nb", fontSize=9, textColor=colors.white)),
-        ]
-        t_b = Table([[texto_blanco, celda_logo]],
-                    colWidths=[col_texto_w, col_logo_w])
-        t_b.setStyle(TableStyle([
-            ("VALIGN",       (0,0), (-1,-1), "MIDDLE"),
+    # ── FILA 1: Logo derecha, celda vacía izquierda ───────────────────────
+    if tiene_logo:
+        logo_img = _logo_platypus(logo, w=3.6*cm, h=3.6*cm, opacidad=1.0)
+        # Logo al 100% de opacidad en encabezado — como un membrete real
+        fila_logo = Table(
+            [["", logo_img]],
+            colWidths=[ANCHO_UTIL - 4.0*cm, 4.0*cm],
+        )
+        fila_logo.setStyle(TableStyle([
             ("ALIGN",        (1,0), (1,0),   "RIGHT"),
-            ("LEFTPADDING",  (0,0), (-1,-1), 0),
-            ("RIGHTPADDING", (0,0), (-1,-1), 0),
-            ("TOPPADDING",   (0,0), (-1,-1), 0),
-            ("BOTTOMPADDING",(0,0), (-1,-1), 0),
-        ]))
-        wrapper = Table([[t_b]], colWidths=[ANCHO_UTIL])
-        wrapper.setStyle(TableStyle([
-            ("BACKGROUND",    (0,0), (-1,-1), paleta["primario"]),
-            ("TOPPADDING",    (0,0), (-1,-1), 8),
-            ("BOTTOMPADDING", (0,0), (-1,-1), 8),
-            ("LEFTPADDING",   (0,0), (-1,-1), 12),
-            ("RIGHTPADDING",  (0,0), (-1,-1), 8),
-        ]))
-        el.append(wrapper)
-        el.append(Spacer(1, 8))
-    else:
-        t = Table([[texto_izq, celda_logo]], colWidths=[col_texto_w, col_logo_w])
-        t.setStyle(TableStyle([
-            ("VALIGN",       (0,0), (-1,-1), "MIDDLE"),
-            ("ALIGN",        (1,0), (1,0),   "RIGHT"),
+            ("VALIGN",       (0,0), (-1,-1), "BOTTOM"),
             ("LEFTPADDING",  (0,0), (-1,-1), 0),
             ("RIGHTPADDING", (0,0), (-1,-1), 0),
             ("TOPPADDING",   (0,0), (-1,-1), 0),
             ("BOTTOMPADDING",(0,0), (-1,-1), 4),
         ]))
+        el.append(fila_logo)
+
+    # ── FILA 2: Bloque de color ancho con Nombre + NIT ────────────────────
+    PAD_LR = 14  # padding izquierdo y derecho del wrapper en puntos
+    ANCHO_INTERNO = ANCHO_UTIL - PAD_LR * 2  # ancho real disponible para texto
+
+    if disenio == 1:
+        # Fondo azul oscuro, texto blanco
+        bloque_nombre = Table([[
+            Paragraph(f"<b><font color='white'>{nombre}</font></b>",
+                ParagraphStyle("hn", fontSize=13, fontName="Helvetica-Bold",
+                    textColor=colors.white, leading=16)),
+            Paragraph(f"<font color='white'>Nit #{nit}</font>",
+                ParagraphStyle("nn", fontSize=10, textColor=colors.white,
+                    alignment=TA_RIGHT)),
+        ]], colWidths=[ANCHO_INTERNO * 0.58, ANCHO_INTERNO * 0.42])
+        bloque_nombre.setStyle(TableStyle([
+            ("VALIGN",       (0,0), (-1,-1), "MIDDLE"),
+            ("LEFTPADDING",  (0,0), (-1,-1), 0),
+            ("RIGHTPADDING", (0,0), (-1,-1), 0),
+            ("TOPPADDING",   (0,0), (-1,-1), 0),
+            ("BOTTOMPADDING",(0,0), (-1,-1), 0),
+        ]))
+        wrapper = Table([[bloque_nombre]], colWidths=[ANCHO_UTIL])
+        wrapper.setStyle(TableStyle([
+            ("BACKGROUND",    (0,0), (-1,-1), paleta["primario"]),
+            ("TOPPADDING",    (0,0), (-1,-1), 10),
+            ("BOTTOMPADDING", (0,0), (-1,-1), 10),
+            ("LEFTPADDING",   (0,0), (-1,-1), PAD_LR),
+            ("RIGHTPADDING",  (0,0), (-1,-1), PAD_LR),
+        ]))
+        el.append(wrapper)
+
+    elif disenio == 2:
+        # Borde dorado inferior
+        t = Table([[
+            Paragraph(f"<b>{nombre}</b>",
+                ParagraphStyle("hn", fontSize=13, fontName="Helvetica-Bold",
+                    textColor=paleta["primario"])),
+            Paragraph(f"Nit #{nit}",
+                ParagraphStyle("nn", fontSize=10, textColor=paleta["gris"],
+                    alignment=TA_RIGHT)),
+        ]], colWidths=[ANCHO_UTIL * 0.65, ANCHO_UTIL * 0.35])
+        t.setStyle(TableStyle([
+            ("VALIGN", (0,0), (-1,-1), "MIDDLE"),
+            ("LEFTPADDING",  (0,0), (-1,-1), 0),
+            ("RIGHTPADDING", (0,0), (-1,-1), 0),
+            ("TOPPADDING",   (0,0), (-1,-1), 4),
+            ("BOTTOMPADDING",(0,0), (-1,-1), 4),
+        ]))
         el.append(t)
-        grosor = 2 if disenio in (4, 5) else 1.5
-        color_linea = paleta["secundario"] if disenio in (4, 5) else paleta["primario"]
-        el.append(HRFlowable(width="100%", thickness=grosor,
-            color=color_linea, spaceAfter=8))
+        el.append(HRFlowable(width="100%", thickness=2.5,
+            color=paleta["secundario"], spaceAfter=6))
+
+    elif disenio == 3:
+        # Borde izquierdo verde
+        t = Table([[
+            Paragraph(f"<b>{nombre}</b>",
+                ParagraphStyle("hn", fontSize=13, fontName="Helvetica-Bold",
+                    textColor=paleta["primario"])),
+            Paragraph(f"Nit #{nit}",
+                ParagraphStyle("nn", fontSize=10, textColor=paleta["gris"],
+                    alignment=TA_RIGHT)),
+        ]], colWidths=[ANCHO_UTIL * 0.65, ANCHO_UTIL * 0.35])
+        t.setStyle(TableStyle([
+            ("VALIGN", (0,0), (-1,-1), "MIDDLE"),
+            ("LEFTPADDING",  (0,0), (0,-1), 10),
+            ("RIGHTPADDING", (0,0), (-1,-1), 0),
+            ("TOPPADDING",   (0,0), (-1,-1), 6),
+            ("BOTTOMPADDING",(0,0), (-1,-1), 6),
+            ("LINEBEFORE",   (0,0), (0,-1), 4, paleta["secundario"]),
+        ]))
+        el.append(t)
+        el.append(HRFlowable(width="100%", thickness=0.5,
+            color=paleta["borde"], spaceAfter=6))
+
+    else:
+        # Diseños 4 y 5: línea gruesa de color
+        t = Table([[
+            Paragraph(f"<b>{nombre}</b>",
+                ParagraphStyle("hn", fontSize=13, fontName="Helvetica-Bold",
+                    textColor=paleta["primario"])),
+            Paragraph(f"Nit #{nit}",
+                ParagraphStyle("nn", fontSize=10, textColor=paleta["gris"],
+                    alignment=TA_RIGHT)),
+        ]], colWidths=[ANCHO_UTIL * 0.65, ANCHO_UTIL * 0.35])
+        t.setStyle(TableStyle([
+            ("VALIGN", (0,0), (-1,-1), "MIDDLE"),
+            ("LEFTPADDING",  (0,0), (-1,-1), 0),
+            ("RIGHTPADDING", (0,0), (-1,-1), 0),
+            ("TOPPADDING",   (0,0), (-1,-1), 4),
+            ("BOTTOMPADDING",(0,0), (-1,-1), 4),
+        ]))
+        el.append(t)
+        el.append(HRFlowable(width="100%", thickness=2,
+            color=paleta["secundario"], spaceAfter=6))
+
+    el.append(Spacer(1, 6))
 
 
 # ── Bloque de firmas dobles ───────────────────────────────────────────────────
