@@ -60,9 +60,13 @@ def _db():
         url = os.getenv("SUPABASE_URL", "")
         key = os.getenv("SUPABASE_KEY", "")
         if not url or not key:
-            raise EnvironmentError("Faltan SUPABASE_URL y SUPABASE_KEY en variables de entorno.")
-        from supabase import create_client
-        _client = create_client(url, key)
+            return None   # sin Supabase → fallback a JSON automático
+        try:
+            from supabase import create_client
+            _client = create_client(url, key)
+        except Exception as e:
+            print(f"Supabase no disponible: {e}")
+            return None
     return _client
 
 def supabase_ok() -> bool:
