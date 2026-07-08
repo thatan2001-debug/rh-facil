@@ -8,7 +8,7 @@ from datetime import date, datetime
 import zipfile, io
 
 # ── DB (Supabase con fallback JSON) ──────────────────────────────────────────
-from utils.db import (
+from utils.db_bridge import (
     usuario_login, usuario_registrar, usuario_registrar_uso,
     empresa_guardar, empresa_cargar,
     admin_listar, admin_activar, admin_cambiar_plan, admin_eliminar, admin_stats,
