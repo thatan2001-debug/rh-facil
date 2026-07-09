@@ -261,8 +261,8 @@ with st.sidebar:
 
     plan_info_sidebar = PLANES.get(u["plan"], PLANES["gratuito"])
     docs_usados       = u.get("documentos_usados", 0)
-    max_docs          = plan_info_sidebar["max_documentos"]
-    sin_limite        = not plan_info_sidebar["limite"]
+    max_docs          = plan_info_sidebar["max_docs"]
+    sin_limite        = not plan_info_sidebar["tiene_limite"]
 
     st.markdown(f"""
     <div class="sidebar-plan-badge">
@@ -599,8 +599,8 @@ elif pagina == "⚡  Generar":
     de            = st.session_state.datos_empresa
     disenio       = st.session_state.disenio_seleccionado
     plan_info     = PLANES.get(u["plan"], PLANES["gratuito"])
-    sin_limite    = not plan_info["limite"]
-    docs_rest     = None if sin_limite else max(0, plan_info["max_documentos"] - u.get("documentos_usados",0))
+    sin_limite    = not plan_info["tiene_limite"]
+    docs_rest     = None if sin_limite else max(0, plan_info["max_docs"] - u.get("documentos_usados",0))
 
     c1,c2,c3 = st.columns(3)
     c1.metric("Empresa", de.get("nombre",""))
