@@ -422,6 +422,130 @@ def _mostrar_config_global(tipo_doc: str, carrito: dict):
         for doc_e in carrito:
             carrito[doc_e]["config"]["observaciones"] = obs
 
+    # ── Contratos laborales ──────────────────────────────────────────────
+    elif tipo_doc in ("contrato_indefinido","contrato_fijo","contrato_obra","contrato_prestacion"):
+        st.markdown("**Configuración del contrato:**")
+        c1, c2 = st.columns(2)
+        with c1:
+            fi_contrato = st.date_input("Fecha de inicio del contrato *",
+                value=date.today(), key="cfg_fi_contrato")
+            lugar = st.text_input("Lugar de trabajo",
+                value=st.session_state.get("datos_empresa",{}).get("ciudad","Colombia"),
+                key="cfg_lugar")
+        with c2:
+            if tipo_doc == "contrato_fijo":
+                ff_contrato = st.date_input("Fecha de terminación *",
+                    value=date.today(), key="cfg_ff_contrato",
+                    help="Máximo 4 años según Ley 2466/2025")
+            elif tipo_doc == "contrato_prestacion":
+                ff_contrato = st.date_input("Fecha de terminación *",
+                    value=date.today(), key="cfg_ff_contrato")
+            jornada = st.selectbox("Jornada",
+                ["Diurna","Nocturna","Mixta"], key="cfg_jornada")
+
+        # Campos específicos por tipo de contrato
+        if tipo_doc == "contrato_obra":
+            desc_obra = st.text_area("Descripción específica de la obra o labor *",
+                key="cfg_desc_obra",
+                placeholder="Ej: Construcción del muro perimetral del proyecto ABC, "
+                            "ubicado en la Cra 45 con Cll 30, con área de 120m²...",
+                help="Debe ser específica y determinada según Art. 46 CST")
+        elif tipo_doc == "contrato_prestacion":
+            objeto = st.text_area("Objeto del contrato *",
+                key="cfg_objeto",
+                placeholder="Ej: Servicios profesionales de asesoría contable "
+                            "mensual para la empresa...")
+            c3, c4 = st.columns(2)
+            with c3:
+                honorarios = st.number_input("Honorarios mensuales ($) *",
+                    min_value=0.0, step=100000.0, key="cfg_honorarios")
+            with c4:
+                forma_pago = st.selectbox("Forma de pago", [
+                    "Mensual, contra entrega de factura o cuenta de cobro",
+                    "Quincenal, contra entrega de factura",
+                    "Único pago al finalizar el servicio",
+                ], key="cfg_forma_pago")
+
+        if tipo_doc in ("contrato_indefinido","contrato_fijo"):
+            per_prueba = st.checkbox("Incluir período de prueba de 2 meses (Art. 78 CST)",
+                value=True, key="cfg_periodo_prueba")
+
+        # Guardar en el carrito
+        for doc_e in carrito:
+            cfg = carrito[doc_e]["config"]
+            cfg["fecha_inicio_contrato"] = fi_contrato
+            cfg["lugar_trabajo"] = lugar
+            cfg["jornada"] = jornada
+            if tipo_doc == "contrato_fijo":
+                cfg["fecha_fin_contrato"] = ff_contrato
+                cfg["periodo_prueba"] = per_prueba
+            elif tipo_doc == "contrato_indefinido":
+                cfg["periodo_prueba"] = per_prueba
+            elif tipo_doc == "contrato_obra":
+                cfg["descripcion_obra"] = desc_obra
+            elif tipo_doc == "contrato_prestacion":
+                cfg["fecha_fin_contrato"] = ff_contrato
+                cfg["objeto_contrato"]    = objeto
+                cfg["honorarios"]         = honorarios
+                cfg["forma_pago"]         = forma_pago
+
+    # ── Carta de terminación ─────────────────────────────────────────────
+    elif tipo_doc == "carta_terminacion":
+        st.markdown("**Configuración de la terminación:**")
+
+        MODALIDADES = {
+            "renuncia_voluntaria":     "Renuncia voluntaria (Art. 47 CST)",
+            "con_justa_causa":         "Con justa causa (Art. 62 CST) — sin indemnización",
+            "sin_justa_causa":         "Sin justa causa (Art. 64 CST) — con indemnización",
+        }
+        modalidad = st.selectbox("Modalidad de terminación *",
+            list(MODALIDADES.keys()),
+            format_func=lambda x: MODALIDADES[x],
+            key="cfg_modalidad_term")
+
+        c1, c2 = st.columns(2)
+        with c1:
+            fecha_ret = st.date_input("Fecha efectiva de retiro *",
+                value=date.today(), key="cfg_fecha_ret_term")
+
+        # Si es con justa causa, mostrar causales del Art. 62 CST
+        causal = "6"
+        hechos = ""
+        if modalidad == "con_justa_causa":
+            from utils.contratos import CAUSAL_JUSTA_CAUSA
+            with c2:
+                # Mostrar solo primeros 60 chars de cada causal para el dropdown
+                opciones = {k: f"Num. {k} — {v[:60]}..." if len(v)>60 else f"Num. {k} — {v}"
+                            for k, v in CAUSAL_JUSTA_CAUSA.items()}
+                causal = st.selectbox("Causal del Art. 62 CST *",
+                    list(CAUSAL_JUSTA_CAUSA.keys()),
+                    format_func=lambda x: opciones[x],
+                    key="cfg_causal")
+                # Mostrar el texto completo del causal seleccionado
+                st.caption(f"📖 **Causal seleccionado:** {CAUSAL_JUSTA_CAUSA[causal]}")
+
+            hechos = st.text_area("Descripción de los hechos *",
+                key="cfg_hechos",
+                placeholder="Describa los hechos específicos que fundamentan la "
+                            "justa causa. Incluya fechas, testigos y evidencia si aplica.",
+                help="Debe ser preciso y verificable. La justa causa debe probarse en juicio.")
+
+            st.warning(
+                "⚠️ **Debido proceso obligatorio:** Antes de terminar con justa causa "
+                "debe haber llamados de atención previos, citación a descargos y "
+                "evaluación de pruebas. Consulte un abogado laboral."
+            )
+
+        obs = st.text_area("Observaciones adicionales (opcional)", key="cfg_obs_term")
+
+        for doc_e in carrito:
+            cfg = carrito[doc_e]["config"]
+            cfg["modalidad"]          = modalidad
+            cfg["fecha_retiro"]       = fecha_ret
+            cfg["causal_justa_causa"] = causal
+            cfg["hechos"]             = hechos
+            cfg["observaciones"]      = obs
+
 
 def _ejecutar_generacion_unificada(
     email: str, datos_empresa: dict, carrito: dict,
@@ -518,6 +642,68 @@ def _ejecutar_generacion_unificada(
                     usar_mda, membrete, usar_logo,
                     conceptos_pendientes=conf.get("conceptos_pend",""),
                     observaciones=conf.get("observaciones",""))
+
+            # ── CONTRATOS ────────────────────────────────────────────────
+            elif tipo_doc in ("contrato_indefinido","contrato_fijo",
+                              "contrato_obra","contrato_prestacion"):
+                from utils.contratos import (
+                    generar_contrato_indefinido, generar_contrato_fijo,
+                    generar_contrato_obra, generar_contrato_prestacion,
+                )
+                # Firmante: usar el del rep. legal para contratos
+                datos_c = {**datos_empresa,
+                    "representante":   rep,
+                    "_cargo_firmante": "Representante Legal",
+                }
+                config_contrato = {
+                    "fecha_inicio_contrato": conf.get("fecha_inicio_contrato", date.today()),
+                    "fecha_fin_contrato":    conf.get("fecha_fin_contrato", date.today()),
+                    "lugar_trabajo":         conf.get("lugar_trabajo",
+                        datos_empresa.get("ciudad","Colombia")),
+                    "jornada":               conf.get("jornada", "Diurna"),
+                    "periodo_prueba":        conf.get("periodo_prueba", True),
+                    "descripcion_obra":      conf.get("descripcion_obra",""),
+                    "objeto_contrato":       conf.get("objeto_contrato",""),
+                    "honorarios":            conf.get("honorarios", 0),
+                    "forma_pago":            conf.get("forma_pago",
+                        "Mensual, contra entrega de factura o cuenta de cobro"),
+                    "funciones":             conf.get("funciones",""),
+                }
+
+                if tipo_doc == "contrato_indefinido":
+                    ruta = str(SALIDAS / f"ContratoIndefinido_{nb}.pdf")
+                    generar_contrato_indefinido(emp_doc, datos_c, ruta,
+                        config_contrato, disenio, usar_mda, membrete, usar_logo)
+                elif tipo_doc == "contrato_fijo":
+                    ruta = str(SALIDAS / f"ContratoFijo_{nb}.pdf")
+                    generar_contrato_fijo(emp_doc, datos_c, ruta,
+                        config_contrato, disenio, usar_mda, membrete, usar_logo)
+                elif tipo_doc == "contrato_obra":
+                    ruta = str(SALIDAS / f"ContratoObra_{nb}.pdf")
+                    generar_contrato_obra(emp_doc, datos_c, ruta,
+                        config_contrato, disenio, usar_mda, membrete, usar_logo)
+                elif tipo_doc == "contrato_prestacion":
+                    ruta = str(SALIDAS / f"ContratoPrestacion_{nb}.pdf")
+                    generar_contrato_prestacion(emp_doc, datos_c, ruta,
+                        config_contrato, disenio, usar_mda, membrete, usar_logo)
+
+            # ── CARTA DE TERMINACIÓN ─────────────────────────────────────
+            elif tipo_doc == "carta_terminacion":
+                from utils.contratos import generar_carta_terminacion
+                datos_t = {**datos_empresa,
+                    "representante":   rep,
+                    "_cargo_firmante": "Representante Legal",
+                }
+                config_term = {
+                    "modalidad":          conf.get("modalidad", "renuncia_voluntaria"),
+                    "fecha_retiro":       conf.get("fecha_retiro", date.today()),
+                    "causal_justa_causa": conf.get("causal_justa_causa", "6"),
+                    "hechos":             conf.get("hechos",""),
+                    "observaciones":      conf.get("observaciones",""),
+                }
+                ruta = str(SALIDAS / f"Terminacion_{nb}.pdf")
+                generar_carta_terminacion(emp_doc, datos_t, ruta,
+                    config_term, disenio, usar_mda, membrete, usar_logo)
 
             if ruta:
                 archivos.append(ruta)
