@@ -250,13 +250,50 @@ with st.sidebar:
     st.divider()
 
     nav_opciones = [
-        "🏠  Inicio", "🏢  Mi empresa", "👥  Empleados",
-        "🎨  Diseño", "⚡  Generar", "💎  Planes",
+        ("🏠", "Inicio",     "🏠  Inicio"),
+        ("🏢", "Mi empresa", "🏢  Mi empresa"),
+        ("👥", "Empleados",  "👥  Empleados"),
+        ("🎨", "Diseño",     "🎨  Diseño"),
+        ("💎", "Planes",     "💎  Planes"),
     ]
     if u.get("es_admin"):
-        nav_opciones.append("🛡️  Admin")
+        nav_opciones.append(("🛡️", "Admin", "🛡️  Admin"))
 
-    pagina = st.radio("nav", nav_opciones, label_visibility="collapsed")
+    # Inicializar página seleccionada
+    if "pagina_actual" not in st.session_state:
+        st.session_state.pagina_actual = "🏠  Inicio"
+    # Permitir cambio programático desde otras partes de la app
+    if "ir_a" in st.session_state:
+        st.session_state.pagina_actual = st.session_state.pop("ir_a")
+
+    # CSS para botones grandes tipo tarjeta
+    st.markdown("""
+    <style>
+    div[data-testid="stSidebar"] .stButton > button {
+        text-align: left !important;
+        justify-content: flex-start !important;
+        font-size: 0.95rem !important;
+        padding: 12px 16px !important;
+        margin-bottom: 4px !important;
+        border-radius: 10px !important;
+        font-weight: 500 !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+    # Renderizar botones grandes
+    for icono, label, key in nav_opciones:
+        activo = st.session_state.pagina_actual == key
+        if st.button(
+            f"{icono}   {label}",
+            key=f"nav_{key}",
+            use_container_width=True,
+            type="primary" if activo else "secondary",
+        ):
+            st.session_state.pagina_actual = key
+            st.rerun()
+
+    pagina = st.session_state.pagina_actual
     st.divider()
 
     from utils.plan_control import obtener_limite_plan
