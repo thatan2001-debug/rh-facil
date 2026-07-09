@@ -259,7 +259,8 @@ with st.sidebar:
     pagina = st.radio("nav", nav_opciones, label_visibility="collapsed")
     st.divider()
 
-    plan_info_sidebar = PLANES.get(u["plan"], PLANES["gratuito"])
+    from utils.plan_control import obtener_limite_plan
+    plan_info_sidebar = obtener_limite_plan(u["plan"])
     docs_usados       = u.get("documentos_usados", 0)
     max_docs          = plan_info_sidebar["max_docs"]
     sin_limite        = not plan_info_sidebar["tiene_limite"]
@@ -598,7 +599,8 @@ elif pagina == "⚡  Generar":
     df            = st.session_state.df_empleados
     de            = st.session_state.datos_empresa
     disenio       = st.session_state.disenio_seleccionado
-    plan_info     = PLANES.get(u["plan"], PLANES["gratuito"])
+    from utils.plan_control import obtener_limite_plan
+    plan_info     = obtener_limite_plan(u["plan"])
     sin_limite    = not plan_info["tiene_limite"]
     docs_rest     = None if sin_limite else max(0, plan_info["max_docs"] - u.get("documentos_usados",0))
 
