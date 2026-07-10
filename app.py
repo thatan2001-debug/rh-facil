@@ -32,6 +32,38 @@ CARPETA_ASSETS  = Path("assets");  CARPETA_ASSETS.mkdir(exist_ok=True)
 PLANTILLA_EXCEL = Path("plantillas/Base_Empleados.xlsx")
 ADMIN_EMAIL     = "admin@gestorrh.co"
 
+# ── Activación por enlace de correo (URL ?activar=xxxxxx) ────────────────────
+_query_params = st.query_params
+if "activar" in _query_params and not st.session_state.get("_activacion_procesada"):
+    from utils.tokens import validar_por_link
+    from utils.db import usuario_activar
+    _token_url = _query_params["activar"]
+    _ok_link, _msg_link, _email_activado = validar_por_link(_token_url)
+    if _ok_link and _email_activado:
+        usuario_activar(_email_activado)
+        st.session_state["_activacion_procesada"] = True
+        st.session_state["_activacion_exitosa"] = _email_activado
+    else:
+        st.session_state["_activacion_procesada"] = True
+        st.session_state["_activacion_error"] = _msg_link
+    # Limpiar el parámetro de la URL
+    st.query_params.clear()
+    st.rerun()
+
+# Mostrar mensajes de activación por enlace
+if st.session_state.get("_activacion_exitosa"):
+    st.success(
+        f"🎉 ¡Cuenta **{st.session_state['_activacion_exitosa']}** activada exitosamente! "
+        f"Ya puedes iniciar sesión."
+    )
+    st.balloons()
+    del st.session_state["_activacion_exitosa"]
+
+if st.session_state.get("_activacion_error"):
+    st.error(f"❌ Error al activar por enlace: {st.session_state['_activacion_error']}")
+    st.info("Puedes ingresar tu código de 6 dígitos manualmente en la pantalla de registro.")
+    del st.session_state["_activacion_error"]
+
 # ── Estado de sesión ──────────────────────────────────────────────────────────
 DEFAULTS = {
     "usuario": None,
@@ -125,10 +157,86 @@ def pantalla_auth():
                     ok, msg = usuario_registrar(email_r, nombre_r, pass_r,
                                                  empresa_r, tel_r)
                     if ok:
-                        st.success(f"✅ {msg}")
-                        st.info("Cuando el administrador active tu cuenta, ya tendrás tu empresa pre-configurada para empezar de inmediato.")
+                        # Enviar token de activación automáticamente
+                        from utils.tokens import enviar_activacion_completa
+                        ok_envio, msg_envio, datos = enviar_activacion_completa(
+                            email=email_r, nombre=nombre_r
+                        )
+                        # Guardar en session para el flujo de activación
+                        st.session_state["registro_pendiente"] = {
+                            "email":  email_r,
+                            "nombre": nombre_r,
+                            "codigo_debug": datos.get("codigo") if not ok_envio else None,
+                        }
+                        if ok_envio:
+                            st.success(
+                                f"✅ Cuenta creada. Te enviamos un correo a "
+                                f"**{email_r}** con el código de activación."
+                            )
+                        else:
+                            st.warning(
+                                f"⚠️ Cuenta creada, pero no pudimos enviar el correo: {msg_envio}"
+                            )
+                            if datos.get("codigo"):
+                                st.info(f"🔑 Tu código de activación es: **{datos['codigo']}** "
+                                        f"(guárdalo, expira en 24 horas)")
+                        st.rerun()
                     else:
                         st.error(msg)
+
+        # ── Formulario de activación (aparece si hay registro pendiente) ────
+        registro = st.session_state.get("registro_pendiente")
+        if registro:
+            st.divider()
+            st.markdown("### 🔑 Activa tu cuenta")
+            st.caption(
+                f"Ingresa el código de 6 dígitos que enviamos a **{registro['email']}**. "
+                f"Si no lo encuentras, revisa la carpeta de spam."
+            )
+            with st.form("activar_cuenta_form"):
+                codigo_input = st.text_input(
+                    "Código de 6 dígitos",
+                    placeholder="123456",
+                    max_chars=6,
+                    key="codigo_activacion",
+                )
+                cc1, cc2 = st.columns(2)
+                with cc1:
+                    activar_btn = st.form_submit_button("✅ Activar mi cuenta",
+                                                         type="primary",
+                                                         use_container_width=True)
+                with cc2:
+                    reenviar_btn = st.form_submit_button("📧 Reenviar código",
+                                                          use_container_width=True)
+
+                if activar_btn and codigo_input:
+                    from utils.tokens import validar_por_codigo
+                    from utils.db import usuario_activar
+                    ok_val, msg_val = validar_por_codigo(registro["email"], codigo_input)
+                    if ok_val:
+                        usuario_activar(registro["email"])
+                        st.balloons()
+                        st.success("🎉 ¡Cuenta activada! Ya puedes iniciar sesión.")
+                        del st.session_state["registro_pendiente"]
+                        st.rerun()
+                    else:
+                        st.error(f"❌ {msg_val}")
+
+                if reenviar_btn:
+                    from utils.tokens import enviar_activacion_completa
+                    ok_re, msg_re, datos_re = enviar_activacion_completa(
+                        email=registro["email"], nombre=registro["nombre"]
+                    )
+                    if ok_re:
+                        st.success(f"✅ Enviamos un nuevo código a {registro['email']}")
+                    else:
+                        st.warning(f"⚠️ {msg_re}")
+                        if datos_re.get("codigo"):
+                            st.info(f"🔑 Tu nuevo código es: **{datos_re['codigo']}**")
+
+            if st.button("← Cancelar y volver al login"):
+                del st.session_state["registro_pendiente"]
+                st.rerun()
 
 
 def pantalla_onboarding():

@@ -290,3 +290,27 @@ where u.es_admin = false;
 -- ================================================================
 -- FIN DEL SCHEMA v2
 -- ================================================================
+
+
+-- ================================================================
+-- TABLA: tokens_activacion (agregada en v2.1)
+-- ================================================================
+create table if not exists tokens_activacion (
+  id           uuid primary key default gen_random_uuid(),
+  email        text not null,
+  codigo       text not null,
+  token_link   text unique not null,
+  expira_en    timestamptz not null,
+  usado        boolean default false,
+  creado_en    timestamptz default now()
+);
+
+create index if not exists idx_tokens_email    on tokens_activacion(email);
+create index if not exists idx_tokens_link     on tokens_activacion(token_link);
+create index if not exists idx_tokens_no_usado on tokens_activacion(usado) where usado = false;
+
+alter table tokens_activacion enable row level security;
+
+drop policy if exists "tokens_service" on tokens_activacion;
+create policy "tokens_service" on tokens_activacion
+  for all to service_role using (true) with check (true);

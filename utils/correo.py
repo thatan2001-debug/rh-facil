@@ -117,3 +117,153 @@ def instrucciones_gmail() -> str:
    - `SMTP_FROM` = `GestorRH Colombia <tucorreo@gmail.com>`
 5. Guarda y redespliega. Listo.
 """
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# CORREO DE ACTIVACIÓN DE CUENTA
+# ══════════════════════════════════════════════════════════════════════════════
+
+def enviar_correo_activacion(
+    destinatario_email: str,
+    destinatario_nombre: str,
+    codigo: str,
+    link_activacion: str,
+) -> tuple[bool, str]:
+    """
+    Envía correo de bienvenida con token de 6 dígitos y link de activación.
+    Retorna (éxito, mensaje).
+    """
+    cfg = _config_smtp()
+    if not cfg["user"] or not cfg["password"]:
+        return False, "SMTP no configurado. Configura SMTP_HOST, SMTP_USER y SMTP_PASS."
+
+    msg = MIMEMultipart("alternative")
+    msg["From"]    = cfg["from"]
+    msg["To"]      = destinatario_email
+    msg["Subject"] = "🎉 Activa tu cuenta en GestorRH Colombia"
+
+    # Versión texto plano (para clientes que no muestran HTML)
+    texto = f"""Hola {destinatario_nombre},
+
+¡Bienvenido(a) a GestorRH Colombia!
+
+Para activar tu cuenta usa cualquiera de estas dos opciones:
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+OPCIÓN 1: Copia tu código de activación
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Tu código de 6 dígitos:  {codigo}
+
+Ingresa este código en la pantalla de "Activar cuenta".
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+OPCIÓN 2: Haz clic en el enlace
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+{link_activacion}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+⏱️  Este código expira en 24 horas.
+
+Si no solicitaste esta cuenta, ignora este correo.
+
+Saludos,
+Equipo GestorRH Colombia
+"""
+
+    # Versión HTML — más profesional
+    html = f"""<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#F3F4F6;font-family:-apple-system,Segoe UI,sans-serif">
+<table width="100%" cellpadding="0" cellspacing="0" style="padding:32px 12px">
+  <tr><td align="center">
+    <table width="560" cellpadding="0" cellspacing="0"
+      style="background:white;border-radius:14px;overflow:hidden;
+             box-shadow:0 4px 20px rgba(0,0,0,.08)">
+
+      <!-- Header -->
+      <tr><td style="background:linear-gradient(135deg,#1B3F6E,#2D6BE4);
+        padding:32px 40px;text-align:center">
+        <div style="color:white;font-size:1.6rem;font-weight:800">
+          👋 ¡Bienvenido(a)!
+        </div>
+        <div style="color:rgba(255,255,255,.85);font-size:.95rem;margin-top:6px">
+          GestorRH Colombia
+        </div>
+      </td></tr>
+
+      <!-- Cuerpo -->
+      <tr><td style="padding:36px 40px">
+        <p style="font-size:1.05rem;color:#111827;line-height:1.5;margin:0 0 20px">
+          Hola <b>{destinatario_nombre}</b>,
+        </p>
+        <p style="color:#374151;line-height:1.6;margin:0 0 24px">
+          Gracias por registrarte. Para empezar a usar la aplicación
+          necesitas activar tu cuenta. Elige una de estas dos opciones:
+        </p>
+
+        <!-- Botón grande -->
+        <table cellpadding="0" cellspacing="0" style="margin:0 auto">
+          <tr><td align="center" style="background:#2D6BE4;border-radius:10px">
+            <a href="{link_activacion}"
+              style="display:inline-block;padding:14px 40px;color:white;
+                     text-decoration:none;font-weight:700;font-size:1rem">
+              ✅ Activar mi cuenta
+            </a>
+          </td></tr>
+        </table>
+
+        <!-- Divisor -->
+        <div style="text-align:center;margin:32px 0 24px;color:#9CA3AF;font-size:.85rem">
+          ─── o usa el código manualmente ───
+        </div>
+
+        <!-- Código -->
+        <div style="background:#F0F9FF;border:2px dashed #93C5FD;
+          border-radius:10px;padding:20px;text-align:center">
+          <div style="color:#1E40AF;font-size:.8rem;font-weight:600;
+            text-transform:uppercase;letter-spacing:.05em">
+            Tu código de activación
+          </div>
+          <div style="color:#1B3F6E;font-size:2.2rem;font-weight:800;
+            letter-spacing:.3em;margin-top:8px;font-family:monospace">
+            {codigo}
+          </div>
+        </div>
+
+        <p style="color:#6B7280;font-size:.85rem;line-height:1.5;
+          margin:24px 0 0;text-align:center">
+          ⏱️ Este código expira en <b>24 horas</b>.<br/>
+          Si no solicitaste esta cuenta, ignora este correo.
+        </p>
+      </td></tr>
+
+      <!-- Footer -->
+      <tr><td style="background:#F9FAFB;padding:20px 40px;text-align:center;
+        border-top:1px solid #E5E7EB">
+        <div style="color:#6B7280;font-size:.8rem">
+          © 2026 GestorRH Colombia · Documentos laborales para PYMES colombianas
+        </div>
+      </td></tr>
+
+    </table>
+  </td></tr>
+</table>
+</body>
+</html>"""
+
+    msg.attach(MIMEText(texto, "plain", "utf-8"))
+    msg.attach(MIMEText(html, "html", "utf-8"))
+
+    try:
+        with smtplib.SMTP(cfg["host"], cfg["port"]) as server:
+            server.ehlo()
+            server.starttls()
+            server.login(cfg["user"], cfg["password"])
+            server.sendmail(cfg["user"], [destinatario_email], msg.as_string())
+        return True, f"Correo de activación enviado a {destinatario_email}"
+    except Exception as e:
+        return False, f"Error enviando correo de activación: {e}"
