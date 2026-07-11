@@ -164,6 +164,11 @@ def _tab_base(email: str):
                                  use_container_width=True):
                         st.session_state["emp_otrosi"] = emp
                         st.rerun()
+                    # Carta de terminación
+                    if st.button("📮 Terminación", key=f"term_{doc}",
+                                 use_container_width=True):
+                        st.session_state["emp_terminacion"] = emp
+                        st.rerun()
                 # Retirar / Eliminar
                 if activo:
                     if st.button("🔴 Retirar", key=f"ret_{doc}",
@@ -176,12 +181,15 @@ def _tab_base(email: str):
                         empleado_eliminar(email, doc)
                         st.rerun()
 
-    # ── Modales de Contrato y Otrosí ─────────────────────────────────────
+    # ── Modales de Contrato, Otrosí y Terminación ────────────────────────
     if st.session_state.get("emp_contrato"):
         _modal_contrato(email, st.session_state["emp_contrato"])
 
     if st.session_state.get("emp_otrosi"):
         _modal_otrosi(email, st.session_state["emp_otrosi"])
+
+    if st.session_state.get("emp_terminacion"):
+        _modal_terminacion(email, st.session_state["emp_terminacion"])
 
     # Carrito flotante
     _mostrar_carrito_resumen()
@@ -751,6 +759,28 @@ def _modal_contrato(email: str, emp: dict):
                     "funciones":             funciones,
                 })
 
+    # ── Botón de descarga FUERA del form (Streamlit no lo permite dentro) ──
+    if st.session_state.get("pdf_contrato_listo"):
+        pdf_info = st.session_state["pdf_contrato_listo"]
+        st.success(f"✅ Contrato generado para {pdf_info['empleado']}.")
+        c1, c2 = st.columns(2)
+        with c1:
+            st.download_button(
+                "⬇️ Descargar contrato PDF",
+                pdf_info["bytes"],
+                file_name=pdf_info["filename"],
+                mime="application/pdf",
+                type="primary",
+                use_container_width=True,
+            )
+        with c2:
+            if st.button("✓ Cerrar y volver", use_container_width=True,
+                         key="cerrar_contrato"):
+                del st.session_state["pdf_contrato_listo"]
+                if "emp_contrato" in st.session_state:
+                    del st.session_state["emp_contrato"]
+                st.rerun()
+
 
 def _ejecutar_contrato_directo(email: str, emp: dict, tipo: str, cfg: dict):
     """Ejecuta la generación del contrato y ofrece descarga."""
@@ -806,14 +836,14 @@ def _ejecutar_contrato_directo(email: str, emp: dict, tipo: str, cfg: dict):
             tipo, emp.get("documento",""), emp.get("nombre",""),
             Path(ruta).name)
 
-        st.success(f"✅ Contrato generado correctamente.")
+        # Guardar el PDF en session_state — se mostrará fuera del formulario
         with open(ruta, "rb") as f:
-            st.download_button("⬇️ Descargar contrato PDF",
-                f, file_name=Path(ruta).name, mime="application/pdf",
-                type="primary")
-        if st.button("Cerrar y volver"):
-            del st.session_state["emp_contrato"]
-            st.rerun()
+            st.session_state["pdf_contrato_listo"] = {
+                "bytes":    f.read(),
+                "filename": Path(ruta).name,
+                "empleado": emp.get("nombre",""),
+                "tipo":     "contrato",
+            }
     except Exception as e:
         st.error(f"Error generando el contrato: {e}")
 
@@ -906,6 +936,28 @@ def _modal_otrosi(email: str, emp: dict):
                     "motivo":            motivo,
                 })
 
+    # ── Botón de descarga FUERA del form ──
+    if st.session_state.get("pdf_otrosi_listo"):
+        pdf_info = st.session_state["pdf_otrosi_listo"]
+        st.success(f"✅ Otrosí generado para {pdf_info['empleado']}. Los datos del empleado fueron actualizados.")
+        c1, c2 = st.columns(2)
+        with c1:
+            st.download_button(
+                "⬇️ Descargar otrosí PDF",
+                pdf_info["bytes"],
+                file_name=pdf_info["filename"],
+                mime="application/pdf",
+                type="primary",
+                use_container_width=True,
+            )
+        with c2:
+            if st.button("✓ Cerrar y volver", use_container_width=True,
+                         key="cerrar_otrosi"):
+                del st.session_state["pdf_otrosi_listo"]
+                if "emp_otrosi" in st.session_state:
+                    del st.session_state["emp_otrosi"]
+                st.rerun()
+
 
 def _ejecutar_otrosi(email: str, emp: dict, cfg: dict):
     """Ejecuta la generación del otrosí y actualiza la BD si aplica."""
@@ -955,11 +1007,161 @@ def _ejecutar_otrosi(email: str, emp: dict, cfg: dict):
 
         st.success("✅ Otrosí generado y datos del empleado actualizados.")
         with open(ruta, "rb") as f:
-            st.download_button("⬇️ Descargar otrosí PDF",
-                f, file_name=Path(ruta).name, mime="application/pdf",
-                type="primary")
-        if st.button("Cerrar y volver"):
-            del st.session_state["emp_otrosi"]
-            st.rerun()
+            st.session_state["pdf_otrosi_listo"] = {
+                "bytes":    f.read(),
+                "filename": Path(ruta).name,
+                "empleado": emp.get("nombre",""),
+                "tipo":     "otrosi",
+            }
     except Exception as e:
         st.error(f"Error generando el otrosí: {e}")
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# MODAL: CARTA DE TERMINACIÓN DIRECTA
+# ══════════════════════════════════════════════════════════════════════════════
+
+def _modal_terminacion(email: str, emp: dict):
+    """Formulario para generar carta de terminación desde empleados."""
+    st.divider()
+    st.markdown(f"### 📮 Carta de terminación para {emp.get('nombre','')}")
+    st.caption("Genera la carta según el motivo de terminación conforme al CST colombiano.")
+
+    if st.button("← Cancelar", key="cancel_terminacion"):
+        del st.session_state["emp_terminacion"]
+        st.rerun()
+
+    MODALIDADES = {
+        "renuncia_voluntaria":     "Renuncia voluntaria (Art. 47 CST)",
+        "con_justa_causa":         "Con justa causa (Art. 62 CST) — sin indemnización",
+        "sin_justa_causa":         "Sin justa causa (Art. 64 CST) — con indemnización",
+    }
+
+    with st.form("form_terminacion_directa"):
+        modalidad = st.selectbox("Modalidad de terminación *",
+            list(MODALIDADES.keys()),
+            format_func=lambda x: MODALIDADES[x],
+            key="tm_modalidad")
+
+        c1, c2 = st.columns(2)
+        with c1:
+            fecha_ret = st.date_input("Fecha efectiva de retiro *",
+                value=date.today(), key="tm_fecha_ret")
+
+        causal = "6"
+        hechos = ""
+        if modalidad == "con_justa_causa":
+            from utils.contratos import CAUSAL_JUSTA_CAUSA
+            with c2:
+                opciones = {k: f"Num. {k} — {v[:60]}..." if len(v)>60 else f"Num. {k} — {v}"
+                            for k, v in CAUSAL_JUSTA_CAUSA.items()}
+                causal = st.selectbox("Causal del Art. 62 CST *",
+                    list(CAUSAL_JUSTA_CAUSA.keys()),
+                    format_func=lambda x: opciones[x],
+                    key="tm_causal")
+                st.caption(f"📖 **Causal seleccionado:** {CAUSAL_JUSTA_CAUSA[causal]}")
+
+            hechos = st.text_area("Descripción de los hechos *",
+                key="tm_hechos",
+                placeholder="Describa los hechos específicos que fundamentan la "
+                            "justa causa. Incluya fechas, testigos y evidencia si aplica.",
+                help="Debe ser preciso y verificable. La justa causa debe probarse en juicio.")
+
+            st.warning(
+                "⚠️ **Debido proceso obligatorio:** Antes de terminar con justa causa "
+                "debe haber llamados de atención previos, citación a descargos y "
+                "evaluación de pruebas. Consulte un abogado laboral."
+            )
+
+        obs = st.text_area("Observaciones adicionales (opcional)", key="tm_obs")
+
+        generar = st.form_submit_button("🚀 Generar carta", type="primary")
+
+        if generar:
+            errores = []
+            if modalidad == "con_justa_causa" and not hechos:
+                errores.append("Los hechos son obligatorios para justa causa")
+
+            if errores:
+                for e in errores: st.error(e)
+            else:
+                _ejecutar_terminacion_directa(email, emp, {
+                    "modalidad":          modalidad,
+                    "fecha_retiro":       fecha_ret,
+                    "causal_justa_causa": causal,
+                    "hechos":             hechos,
+                    "observaciones":      obs,
+                })
+
+    # ── Botón de descarga FUERA del form ──
+    if st.session_state.get("pdf_terminacion_listo"):
+        pdf_info = st.session_state["pdf_terminacion_listo"]
+        st.success(f"✅ Carta de terminación generada para {pdf_info['empleado']}.")
+        c1, c2 = st.columns(2)
+        with c1:
+            st.download_button(
+                "⬇️ Descargar carta PDF",
+                pdf_info["bytes"],
+                file_name=pdf_info["filename"],
+                mime="application/pdf",
+                type="primary",
+                use_container_width=True,
+            )
+        with c2:
+            if st.button("✓ Cerrar y volver", use_container_width=True,
+                         key="cerrar_terminacion"):
+                del st.session_state["pdf_terminacion_listo"]
+                if "emp_terminacion" in st.session_state:
+                    del st.session_state["emp_terminacion"]
+                st.rerun()
+
+
+def _ejecutar_terminacion_directa(email: str, emp: dict, cfg: dict):
+    """Ejecuta la generación de la carta de terminación."""
+    from utils.contratos import generar_carta_terminacion
+    from utils.historial import registrar as registrar_hist
+
+    datos_empresa = st.session_state.get("datos_empresa", {})
+    rep = datos_empresa.get("representante","")
+    datos_t = {**datos_empresa,
+        "representante":   rep,
+        "_cargo_firmante": "Representante Legal",
+    }
+
+    emp_doc = {
+        "Nombre":        emp.get("nombre",""),
+        "Documento":     emp.get("documento",""),
+        "Cargo":         emp.get("cargo",""),
+        "Salario":       float(emp.get("salario", 0) or 0),
+        "Fecha ingreso": emp.get("fecha_ingreso",""),
+        "Tipo contrato": emp.get("tipo_contrato","Indefinido"),
+    }
+
+    SALIDAS = Path("salidas"); SALIDAS.mkdir(exist_ok=True)
+    nb = emp.get("nombre","empleado").strip().replace(" ","_")
+    disenio  = st.session_state.get("disenio_seleccionado", 1)
+    usar_mda = st.session_state.get("usar_marca_agua", False)
+    usar_logo= st.session_state.get("usar_logo_enc", True)
+    membrete = st.session_state.get("membrete_path")
+
+    ruta = str(SALIDAS / f"Terminacion_{nb}_{date.today().strftime('%Y%m%d')}.pdf")
+
+    try:
+        generar_carta_terminacion(emp_doc, datos_t, ruta, cfg,
+            disenio, usar_mda, membrete, usar_logo)
+
+        registrar_hist(email, email, datos_empresa.get("nombre",""),
+            "carta_terminacion", emp.get("documento",""), emp.get("nombre",""),
+            Path(ruta).name,
+            observaciones=f"Modalidad: {cfg['modalidad']}")
+
+        # Guardar en session_state para mostrar botón fuera del form
+        with open(ruta, "rb") as f:
+            st.session_state["pdf_terminacion_listo"] = {
+                "bytes":    f.read(),
+                "filename": Path(ruta).name,
+                "empleado": emp.get("nombre",""),
+                "tipo":     "terminacion",
+            }
+    except Exception as e:
+        st.error(f"Error generando la carta de terminación: {e}")

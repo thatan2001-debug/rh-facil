@@ -201,8 +201,6 @@ def _pie(canvas_obj, doc, paleta: dict, logo_path: str = None,
     canvas_obj.setFillColor(paleta["gris"])
     canvas_obj.drawString(2*cm, 1.2*cm,
         f"Generado el {datetime.today().strftime('%d/%m/%Y %H:%M')} — GestorRH Colombia")
-    canvas_obj.drawRightString(letter[0]-2*cm, 1.2*cm,
-        "Estimación de referencia. Validar con contador o abogado laboral.")
     canvas_obj.restoreState()
 
 
@@ -475,9 +473,6 @@ def generar_certificado(empleado: dict, datos_empresa: dict, ruta_salida: str,
     el.append(Paragraph(
         f"{datos_empresa.get('_cargo_firmante','Representante Legal')} — {datos_empresa.get('nombre','')}",
         estilos["firma_cargo"]))
-    el.append(Paragraph(
-        "Documento generado automáticamente. Verifique los datos antes del uso oficial.",
-        estilos["nota"]))
 
     _fn = lambda c,d: _pie(c, d, paleta, logo, usar_marca_agua)
     doc.build(el, onFirstPage=_fn, onLaterPages=_fn)
@@ -768,9 +763,6 @@ def generar_certificado_sin_salario(empleado: dict, datos_empresa: dict,
         f"{datos_empresa.get('_cargo_firmante','Representante Legal')} — "
         f"{datos_empresa.get('nombre','')}",
         estilos["firma_cargo"]))
-    el.append(Paragraph(
-        "Documento generado automáticamente. Verifique los datos antes del uso oficial.",
-        estilos["nota"]))
 
     _fn = lambda c,d: _pie(c, d, paleta, logo, usar_marca_agua)
     doc.build(el, onFirstPage=_fn, onLaterPages=_fn)
