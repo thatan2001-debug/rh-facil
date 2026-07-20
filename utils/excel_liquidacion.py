@@ -1,7 +1,7 @@
 """
 Generación de liquidación en formato Excel.
 
-Modo 1 — Formato propio GestorRH Colombia:
+Modo 1 — Formato propio Gestor RH IA:
   Genera un Excel profesional con el cálculo completo.
 
 Modo 2 — Plantilla del usuario:
@@ -50,7 +50,7 @@ def _borde_medio():
 def generar_excel_liquidacion_propio(resultado: dict, datos_empresa: dict,
                                       ruta_salida: str, disenio: int = 1):
     """
-    Genera un Excel de liquidación con formato profesional propio de GestorRH Colombia.
+    Genera un Excel de liquidación con formato profesional propio de Gestor RH IA.
     """
     colores = COLORES_DISENIO.get(disenio, COLORES_DISENIO[1])
     c_prim  = colores["primario"]

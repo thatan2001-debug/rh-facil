@@ -124,6 +124,7 @@ def _indemnizacion(salario: float, dias_totales: int, tipo_contrato: str,
         "renuncia", "renuncia_voluntaria", "con_justa_causa",
         "mutuo_acuerdo", "vencimiento_contrato", "vencimiento",
         "jubilacion", "periodo_prueba", "terminacion_periodo_prueba",
+        "obra_terminada",  # obra terminada correctamente = no indemnización
     }
     if motivo in sin_indem:
         return {
@@ -207,6 +208,7 @@ def calcular_liquidacion_fila(
     fecha_corte_default=None,
     incluir_indemnizacion: bool = False,
     motivo_retiro: str = "renuncia",
+    dias_pendientes_fijo: int = 0,
 ):
     """
     Calcula la liquidación completa de un empleado.
@@ -215,7 +217,11 @@ def calcular_liquidacion_fila(
         fila: dict o pd.Series con los campos del Excel.
         fecha_corte_default: fecha de corte si no hay Fecha retiro.
         incluir_indemnizacion: True solo si fue despido sin justa causa.
-        motivo_retiro: 'renuncia' | 'despido_sin_justa_causa' | 'mutuo_acuerdo' | 'vencimiento'
+        motivo_retiro: motivo específico de terminación (renuncia, despido_sin_justa_causa,
+                       con_justa_causa, mutuo_acuerdo, vencimiento_contrato, obra_terminada,
+                       periodo_prueba, jubilacion)
+        dias_pendientes_fijo: días que faltaban para terminar el contrato fijo o la obra
+                              (solo aplica si es despido sin justa causa en contrato fijo/obra)
 
     Retorna: dict con cada concepto desglosado y el total.
     """
@@ -278,7 +284,8 @@ def calcular_liquidacion_fila(
 
     if genera_indem:
         info_indem = _indemnizacion(salario, dias_total, tipo_contrato,
-                                     motivo_retiro=motivo_lower)
+                                     motivo_retiro=motivo_lower,
+                                     dias_pendientes_fijo=dias_pendientes_fijo)
         indem = info_indem["monto"]
         indem_dias = info_indem["dias"]
         indem_articulo = info_indem["articulo"]

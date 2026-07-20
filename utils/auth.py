@@ -1,4 +1,4 @@
-"""Autenticación GestorRH Colombia — usa db.py como capa de datos."""
+"""Autenticación Gestor RH IA — usa db.py como capa de datos."""
 
 import hashlib
 from pathlib import Path

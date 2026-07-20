@@ -1,5 +1,5 @@
 """
-Estilos CSS globales para GestorRH Colombia.
+Estilos CSS globales para Gestor RH IA.
 Diseño limpio y profesional: blanco + azul corporativo.
 """
 

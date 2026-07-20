@@ -1,5 +1,5 @@
 """
-5 diseños profesionales de plantillas PDF para GestorRH Colombia.
+5 diseños profesionales de plantillas PDF para Gestor RH IA.
 Encabezado: Nombre empresa (izq) + NIT debajo | Logo (der)
 Opciones: logo como marca de agua, membrete personalizado desde Word
 Liquidación: firma de representante legal Y empleado
@@ -200,7 +200,7 @@ def _pie(canvas_obj, doc, paleta: dict, logo_path: str = None,
     canvas_obj.setFont("Helvetica", 7.5)
     canvas_obj.setFillColor(paleta["gris"])
     canvas_obj.drawString(2*cm, 1.2*cm,
-        f"Generado el {datetime.today().strftime('%d/%m/%Y %H:%M')} — GestorRH Colombia")
+        f"Generado el {datetime.today().strftime('%d/%m/%Y %H:%M')} — Gestor RH IA")
     canvas_obj.restoreState()
 
 

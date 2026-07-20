@@ -1,5 +1,5 @@
 """
-Control de planes y límites — GestorRH Colombia.
+Control de planes y límites — Gestor RH IA.
 Planes ajustados al modelo de negocio real para PYMES colombianas.
 """
 
@@ -20,7 +20,7 @@ PLANES = {
         "dias_prueba":      None,
         "tiene_limite":    True,
         "multiempresa":    False,
-        "marca_agua_rh":   True,     # Documentos con "Generado con GestorRH Colombia"
+        "marca_agua_rh":   True,     # Documentos con "Generado con Gestor RH IA"
         "features": [
             "1 empresa",
             "Hasta 5 empleados",
@@ -28,7 +28,7 @@ PLANES = {
             "Certificado laboral con/sin salario",
             "Carta de vacaciones",
             "Descarga en PDF",
-            'Marca "Generado con GestorRH Colombia"',
+            'Marca "Generado con Gestor RH IA"',
         ],
         "documentos_habilitados": [
             "certificado_con_salario",
@@ -197,7 +197,7 @@ def link_whatsapp(mensaje: str = "") -> str:
     """Genera link de WhatsApp con mensaje pre-escrito."""
     import urllib.parse
     if not mensaje:
-        mensaje = "Hola, quiero suscribirme a GestorRH Colombia. ¿Me pueden dar información sobre los planes disponibles?"
+        mensaje = "Hola, quiero suscribirme a Gestor RH IA. ¿Me pueden dar información sobre los planes disponibles?"
     return f"https://wa.me/{WHATSAPP_NUMERO}?text={urllib.parse.quote(mensaje)}"
 
 
@@ -207,7 +207,7 @@ def link_whatsapp_plan(plan: str) -> str:
     precio = info.get("precio_fmt", "")
     nombre = info.get("nombre", plan)
     msg = (
-        f"Hola, quiero activar el plan {nombre} de GestorRH Colombia "
+        f"Hola, quiero activar el plan {nombre} de Gestor RH IA "
         f"({precio}/mes). ¿Cómo procedo?"
     )
     return link_whatsapp(msg)
@@ -215,14 +215,14 @@ def link_whatsapp_plan(plan: str) -> str:
 
 # ── Textos comerciales seguros ────────────────────────────────────────────────
 MENSAJE_PRINCIPAL = (
-    "GestorRH Colombia te ayuda a generar documentos laborales profesionales "
+    "Gestor RH IA te ayuda a generar documentos laborales profesionales "
     "para tu empresa en minutos, usando los datos de tus empleados, "
     "el logo de tu empresa y plantillas organizadas, listas para revisar, "
     "firmar, descargar o enviar."
 )
 
 DISCLAIMER_DOCUMENTOS = (
-    "⚖️ Aviso: Los documentos generados por GestorRH Colombia son de referencia. "
+    "⚖️ Aviso: Los documentos generados por Gestor RH IA son de referencia. "
     "No constituyen asesoría legal, laboral, contable ni tributaria. "
     "Valide siempre con su contador o abogado antes de firmar o usar para pagos reales."
 )

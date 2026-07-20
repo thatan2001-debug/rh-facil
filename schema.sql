@@ -1,5 +1,5 @@
 -- ================================================================
--- GestorRH Colombia — Schema Supabase
+-- Gestor RH IA — Schema Supabase
 -- Ejecutar en: Supabase → SQL Editor → New Query
 -- ================================================================
 

@@ -7,7 +7,7 @@ Configuración en Render → Environment Variables:
   SMTP_PORT     587
   SMTP_USER     tucorreo@gmail.com
   SMTP_PASS     contraseña_de_aplicacion_gmail
-  SMTP_FROM     GestorRH Colombia <tucorreo@gmail.com>
+  SMTP_FROM     Gestor RH IA <tucorreo@gmail.com>
 """
 
 import smtplib
@@ -24,7 +24,7 @@ def _config_smtp() -> dict:
         "port": int(os.getenv("SMTP_PORT", 587)),
         "user": os.getenv("SMTP_USER", ""),
         "password": os.getenv("SMTP_PASS", ""),
-        "from": os.getenv("SMTP_FROM", "GestorRH Colombia <noreply@gestorrh.co>"),
+        "from": os.getenv("SMTP_FROM", "Gestor RH IA <noreply@gestorrh.co>"),
     }
 
 
@@ -71,7 +71,7 @@ Cordialmente,
 {empresa_nombre}
 
 ---
-Documento generado automáticamente por GestorRH Colombia.
+Documento generado automáticamente por Gestor RH IA.
 Este correo fue enviado desde {remitente}.
 """
     msg.attach(MIMEText(cuerpo, "plain", "utf-8"))
@@ -107,14 +107,14 @@ def instrucciones_gmail() -> str:
 **Cómo configurar Gmail para envío automático:**
 
 1. Entra a tu cuenta Google → Seguridad → Verificación en 2 pasos (actívala si no está)
-2. En Seguridad → Contraseñas de aplicaciones → crea una para "GestorRH Colombia"
+2. En Seguridad → Contraseñas de aplicaciones → crea una para "Gestor RH IA"
 3. Copia la contraseña de 16 caracteres que genera Google
 4. En Render → tu servicio → Environment → agrega:
    - `SMTP_HOST` = `smtp.gmail.com`
    - `SMTP_PORT` = `587`
    - `SMTP_USER` = `tucorreo@gmail.com`
    - `SMTP_PASS` = `contraseña de 16 caracteres`
-   - `SMTP_FROM` = `GestorRH Colombia <tucorreo@gmail.com>`
+   - `SMTP_FROM` = `Gestor RH IA <tucorreo@gmail.com>`
 5. Guarda y redespliega. Listo.
 """
 
@@ -140,12 +140,12 @@ def enviar_correo_activacion(
     msg = MIMEMultipart("alternative")
     msg["From"]    = cfg["from"]
     msg["To"]      = destinatario_email
-    msg["Subject"] = "🎉 Activa tu cuenta en GestorRH Colombia"
+    msg["Subject"] = "🎉 Activa tu cuenta en Gestor RH IA"
 
     # Versión texto plano (para clientes que no muestran HTML)
     texto = f"""Hola {destinatario_nombre},
 
-¡Bienvenido(a) a GestorRH Colombia!
+¡Bienvenido(a) a Gestor RH IA!
 
 Para activar tu cuenta usa cualquiera de estas dos opciones:
 
@@ -170,7 +170,7 @@ OPCIÓN 2: Haz clic en el enlace
 Si no solicitaste esta cuenta, ignora este correo.
 
 Saludos,
-Equipo GestorRH Colombia
+Equipo Gestor RH IA
 """
 
     # Versión HTML — más profesional
@@ -191,7 +191,7 @@ Equipo GestorRH Colombia
           👋 ¡Bienvenido(a)!
         </div>
         <div style="color:rgba(255,255,255,.85);font-size:.95rem;margin-top:6px">
-          GestorRH Colombia
+          Gestor RH IA
         </div>
       </td></tr>
 
@@ -245,7 +245,7 @@ Equipo GestorRH Colombia
       <tr><td style="background:#F9FAFB;padding:20px 40px;text-align:center;
         border-top:1px solid #E5E7EB">
         <div style="color:#6B7280;font-size:.8rem">
-          © 2026 GestorRH Colombia · Documentos laborales para PYMES colombianas
+          © 2026 Gestor RH IA · Documentos laborales para PYMES colombianas
         </div>
       </td></tr>
 

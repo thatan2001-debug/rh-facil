@@ -1,5 +1,5 @@
 """
-Capa de base de datos para GestorRH Colombia.
+Capa de base de datos para Gestor RH IA.
 Usa Supabase (PostgreSQL) si las variables de entorno están configuradas.
 Fallback transparente a JSON local si no lo están (desarrollo/demo).
 """

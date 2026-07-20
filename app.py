@@ -1,5 +1,5 @@
 """
-GestorRH Colombia v16 — App principal con Supabase, onboarding y dashboard
+Gestor RH IA v16 — App principal con Supabase, onboarding y dashboard
 """
 import streamlit as st
 import pandas as pd
@@ -24,7 +24,7 @@ from utils.preview_disenios import generar_previews, limpiar_previews
 from utils.correo import enviar_documentos, smtp_configurado, instrucciones_gmail
 from utils.estilos import CSS
 
-st.set_page_config(page_title="GestorRH Colombia", page_icon="📄", layout="wide")
+st.set_page_config(page_title="Gestor RH IA", page_icon="📄", layout="wide")
 st.markdown(CSS, unsafe_allow_html=True)
 
 CARPETA_SALIDAS = Path("salidas"); CARPETA_SALIDAS.mkdir(exist_ok=True)
@@ -136,7 +136,7 @@ def pantalla_auth():
         st.markdown("""
         <div style='text-align:center;padding:2rem 0 1rem'>
             <div style='font-size:2.5rem'>📄</div>
-            <h1 style='color:#1B3F6E;margin:0'>GestorRH Colombia</h1>
+            <h1 style='color:#1B3F6E;margin:0'>Gestor RH IA</h1>
             <p style='color:#6B7280;margin-top:4px'>
                 Documentos laborales para PYMES colombianas
             </p>
@@ -381,18 +381,21 @@ empresa_ok = bool(st.session_state.datos_empresa.get("nombre") and
 # SIDEBAR
 # ══════════════════════════════════════════════════════════════════════════════
 with st.sidebar:
-    st.markdown("## 📄 GestorRH Colombia")
+    st.markdown("## 📄 Gestor RH IA")
     st.caption(f"Hola, **{u['nombre'].split()[0]}** 👋")
     if usar_supabase():
         st.caption("🟢 Base de datos activa")
     st.divider()
 
     nav_opciones = [
-        ("🏠", "Inicio",     "🏠  Inicio"),
-        ("🏢", "Mi empresa", "🏢  Mi empresa"),
-        ("👥", "Empleados",  "👥  Empleados"),
-        ("🎨", "Diseño",     "🎨  Diseño"),
-        ("💎", "Planes",     "💎  Planes"),
+        ("🏠", "Inicio",       "🏠  Inicio"),
+        ("👥", "Empleados",    "👥  Empleados"),
+        ("📄", "Documentos",   "📄  Documentos"),
+        ("💰", "Liquidaciones","💰  Liquidaciones"),
+        ("📊", "Reportes",     "📊  Reportes"),
+        ("🏢", "Mi empresa",   "🏢  Mi empresa"),
+        ("⚙️", "Configuración","⚙️  Configuración"),
+        ("💎", "Planes",       "💎  Planes"),
     ]
     if u.get("es_admin"):
         nav_opciones.append(("🛡️", "Admin", "🛡️  Admin"))
@@ -507,30 +510,106 @@ if pagina == "🏠  Inicio":
     # Hero personalizado
     st.markdown(f"""
     <div style='background:linear-gradient(135deg,#1B3F6E,#2D6BE4);
-        border-radius:16px;padding:2.5rem;margin-bottom:1.5rem;color:white'>
-        <h1 style='margin:0 0 .5rem;font-size:1.8rem'>
-            Buenos días, {u['nombre'].split()[0]} 👋</h1>
-        <p style='margin:0;opacity:.85;font-size:1.05rem'>
+        border-radius:16px;padding:2.2rem 2.5rem;margin-bottom:1.5rem;color:white'>
+        <h1 style='margin:0 0 .5rem;font-size:1.75rem'>
+            ¡Bienvenido, {u['nombre'].split()[0]}! 👋</h1>
+        <p style='margin:0;opacity:.9;font-size:1.05rem'>
             {nombre_emp} · Plan <b>{u['plan'].capitalize()}</b></p>
-        <p style='margin:.8rem 0 0;opacity:.7;font-size:.9rem'>
-            GestorRH Colombia te ayuda a generar certificados laborales, cartas de vacaciones
-            y liquidaciones en segundos, cumpliendo el CST colombiano 2026.
-        </p>
     </div>""", unsafe_allow_html=True)
 
-    # Métricas rápidas
-    docs_rest = max(0, max_docs - docs_usados) if not sin_limite else None
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("📄 Docs generados", docs_usados)
-    c2.metric("📋 Disponibles", "∞" if sin_limite else docs_rest)
-    c3.metric("🎨 Diseño activo",
-              f"#{st.session_state.disenio_seleccionado} "
-              f"{nombre_disenio(st.session_state.disenio_seleccionado)}")
-    c4.metric("💾 Base de datos", "Supabase ☁️" if usar_supabase() else "Local 💻")
+    # ── Calcular métricas del dashboard ─────────────────────────────────
+    from utils.empleados_db import empleados_listar
+    from utils.historial import obtener
+    empleados_all = empleados_listar(u["email"])
+    empleados_activos_num = sum(1 for e in empleados_all if e.get("activo", True))
+    empleados_retirados_num = sum(1 for e in empleados_all if not e.get("activo", True))
+
+    # Contratos por vencer (fijos con fecha_fin en próximos 30 días)
+    from datetime import date as _date, timedelta as _td, datetime as _datetime
+    contratos_por_vencer = 0
+    hoy = _date.today()
+    limite = hoy + _td(days=30)
+    for e in empleados_all:
+        if e.get("activo", True):
+            fecha_fin_c = str(e.get("fecha_fin_contrato","") or "").strip()
+            if fecha_fin_c:
+                # Intentar varios formatos comunes
+                for fmt in ("%d/%m/%Y", "%Y-%m-%d", "%d-%m-%Y"):
+                    try:
+                        ff = _datetime.strptime(fecha_fin_c[:10], fmt).date()
+                        if hoy <= ff <= limite:
+                            contratos_por_vencer += 1
+                        break
+                    except Exception:
+                        continue
+
+    # Documentos generados este mes
+    hist = obtener(u["email"], limite=1000)
+    docs_este_mes = 0
+    mes_actual = hoy.strftime("%Y-%m")
+    for h in hist:
+        fecha_h = str(h.get("fecha","") or h.get("timestamp","") or "")[:7]
+        if fecha_h == mes_actual:
+            docs_este_mes += 1
+
+    # ── Dashboard principal ────────────────────────────────────────────
+    st.markdown("### 📊 Panel de control")
+    m1, m2, m3, m4, m5 = st.columns(5)
+    m1.metric("👥 Empleados activos", empleados_activos_num)
+    m2.metric("📅 Contratos por vencer", contratos_por_vencer,
+              help="Contratos fijos que terminan en los próximos 30 días")
+    m3.metric("🏖️ Vacaciones pendientes", "—",
+              help="Función próxima")
+    m4.metric("📄 Docs este mes", docs_este_mes)
+    m5.metric("⭕ Retirados", empleados_retirados_num)
 
     st.divider()
 
-    # ── ¿Qué puedes hacer? ───────────────────────────────────────────────────
+    # ── Botones rápidos ────────────────────────────────────────────────
+    st.markdown("### ⚡ Acciones rápidas")
+    b1, b2, b3, b4, b5 = st.columns(5)
+    with b1:
+        if st.button("➕ Registrar empleado", use_container_width=True,
+                     type="primary", key="btn_reg_emp"):
+            st.session_state["ir_a"] = "👥  Empleados"
+            st.session_state["emp_tab"] = "editar"
+            st.rerun()
+    with b2:
+        if st.button("📋 Crear certificado", use_container_width=True,
+                     key="btn_cert"):
+            st.session_state["ir_a"] = "📄  Documentos"
+            st.session_state["doc_preseleccionado"] = "certificado_con_salario"
+            st.rerun()
+    with b3:
+        if st.button("💰 Calcular liquidación", use_container_width=True,
+                     key="btn_liq"):
+            st.session_state["ir_a"] = "💰  Liquidaciones"
+            st.rerun()
+    with b4:
+        if st.button("🏖️ Generar vacaciones", use_container_width=True,
+                     key="btn_vac"):
+            st.session_state["ir_a"] = "📄  Documentos"
+            st.session_state["doc_preseleccionado"] = "carta_vacaciones"
+            st.rerun()
+    with b5:
+        if st.button("📊 Ver reportes", use_container_width=True,
+                     key="btn_rep"):
+            st.session_state["ir_a"] = "📊  Reportes"
+            st.rerun()
+
+    st.divider()
+
+    # Consumo del plan
+    docs_rest = max(0, max_docs - docs_usados) if not sin_limite else None
+    st.markdown("### 💎 Tu plan")
+    p1, p2, p3 = st.columns(3)
+    p1.metric("📄 Documentos usados", docs_usados)
+    p2.metric("📋 Disponibles", "∞" if sin_limite else docs_rest)
+    p3.metric("💾 Base de datos", "Supabase ☁️" if usar_supabase() else "Local 💻")
+
+    st.divider()
+
+    # ── ¿Qué puedes hacer? (bloque existente conservado) ─────────────────
     st.markdown("### ¿Qué puedes generar hoy?")
     c1, c2, c3 = st.columns(3)
     with c1:
@@ -841,7 +920,7 @@ elif pagina == "👥  Empleados":
 # ══════════════════════════════════════════════════════════════════════════════
 # DISEÑO
 # ══════════════════════════════════════════════════════════════════════════════
-elif pagina == "🎨  Diseño":
+elif pagina == "⚙️  Configuración":
     from utils.preview_disenios import generar_previews, limpiar_previews, EMPRESA_DEMO
     st.markdown("# Diseño de plantillas")
     st.caption("Vista previa real de cada diseño. Elige el que mejor represente tu empresa.")
@@ -917,7 +996,7 @@ elif pagina == "🎨  Diseño":
 # ══════════════════════════════════════════════════════════════════════════════
 # GENERAR DOCUMENTOS
 # ══════════════════════════════════════════════════════════════════════════════
-elif pagina == "⚡  Generar":
+elif pagina == "📄  Documentos":
     st.markdown("# Generar documentos")
     if not empresa_ok:
         st.error("⚠️ Configura primero los datos de tu empresa."); st.stop()
@@ -1103,9 +1182,109 @@ elif pagina == "⚡  Generar":
             mime="application/zip", type="primary")
 
 # ══════════════════════════════════════════════════════════════════════════════
-# PLANES
+# LIQUIDACIONES (acceso directo)
 # ══════════════════════════════════════════════════════════════════════════════
-elif pagina == "💎  Planes":
+elif pagina == "💰  Liquidaciones":
+    st.markdown("# 💰 Liquidaciones")
+    st.caption(
+        "Calcula liquidaciones definitivas conforme al CST colombiano: cesantías, "
+        "intereses de cesantías, prima, vacaciones e indemnización según motivo de retiro."
+    )
+    st.info(
+        "💡 Esta sección te lleva directamente al flujo de liquidación. "
+        "Selecciona los empleados a liquidar en la pantalla siguiente."
+    )
+    if st.button("🚀 Iniciar liquidación", type="primary", use_container_width=False):
+        st.session_state["ir_a"] = "📄  Documentos"
+        st.session_state["doc_preseleccionado"] = "liquidacion_prestaciones"
+        st.rerun()
+
+    st.divider()
+    st.markdown("### 📖 Guía rápida — Motivos de retiro y sus efectos")
+    st.markdown("""
+| Motivo de retiro | Prestaciones sociales | Indemnización |
+|---|---|---|
+| **Renuncia voluntaria** | ✅ Se paga | ❌ No aplica |
+| **Con justa causa (Art. 62)** | ✅ Se paga | ❌ No aplica |
+| **Sin justa causa (Art. 64)** | ✅ Se paga | ✅ **SÍ aplica** |
+| **Mutuo acuerdo** | ✅ Se paga | ❌ No aplica (salvo pacto) |
+| **Vencimiento contrato fijo** | ✅ Se paga | ❌ No aplica (con preaviso) |
+| **Finalización de obra** | ✅ Se paga | ❌ No aplica (obra terminó) |
+| **Período de prueba** | ✅ Se paga | ❌ No aplica (Art. 78 CST) |
+| **Jubilación** | ✅ Se paga | ❌ No aplica |
+""")
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# REPORTES Y DASHBOARD
+# ══════════════════════════════════════════════════════════════════════════════
+elif pagina == "📊  Reportes":
+    st.markdown("# 📊 Reportes")
+    st.caption("Métricas y análisis de tu operación de recursos humanos.")
+
+    from utils.empleados_db import empleados_listar
+    from utils.historial import obtener
+    empleados_all = empleados_listar(u["email"])
+    hist = obtener(u["email"], limite=1000)
+
+    # ── Métricas generales ─────────────────────────────────────────────
+    activos = [e for e in empleados_all if e.get("activo", True)]
+    retirados = [e for e in empleados_all if not e.get("activo", True)]
+
+    st.markdown("### 📈 Panorama general")
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("👥 Total empleados", len(empleados_all))
+    c2.metric("✅ Activos", len(activos))
+    c3.metric("⭕ Retirados", len(retirados))
+    c4.metric("📄 Documentos totales", len(hist))
+
+    st.divider()
+
+    # ── Distribución por tipo de contrato ──────────────────────────────
+    if activos:
+        st.markdown("### 📊 Distribución por tipo de contrato")
+        from collections import Counter
+        tipos = Counter(str(e.get("tipo_contrato","Sin definir")).capitalize() for e in activos)
+        c1, c2 = st.columns([2, 1])
+        with c1:
+            import pandas as pd
+            df_tipos = pd.DataFrame(list(tipos.items()), columns=["Tipo", "Cantidad"])
+            st.bar_chart(df_tipos.set_index("Tipo"))
+        with c2:
+            for tipo, cant in tipos.most_common():
+                st.metric(f"📝 {tipo}", cant)
+
+    st.divider()
+
+    # ── Costos laborales estimados ─────────────────────────────────────
+    st.markdown("### 💵 Costos laborales estimados (mensual)")
+    total_nomina = sum(float(e.get("salario", 0) or 0) for e in activos)
+    total_variable = sum(float(e.get("ingreso_promedio_variable", 0) or 0) for e in activos)
+    prestacional = total_nomina * 0.2135  # aprox 21.35% de prestaciones
+    total_carga = total_nomina + total_variable + prestacional
+
+    cc1, cc2, cc3 = st.columns(3)
+    cc1.metric("💰 Nómina fija", f"${total_nomina:,.0f}".replace(",","."))
+    cc2.metric("📊 Ingresos variables", f"${total_variable:,.0f}".replace(",","."))
+    cc3.metric("📋 Carga prestacional (~21.35%)", f"${prestacional:,.0f}".replace(",","."))
+
+    st.info(f"💼 **Costo laboral total estimado:** "
+            f"${total_carga:,.0f}".replace(",",".") + " COP mensuales")
+
+    st.divider()
+
+    # ── Documentos generados por tipo ──────────────────────────────────
+    if hist:
+        st.markdown("### 📄 Documentos generados por tipo")
+        from collections import Counter
+        tipos_doc = Counter(h.get("tipo_documento","otro") for h in hist)
+        for tipo, cant in tipos_doc.most_common():
+            st.markdown(f"- **{tipo.replace('_',' ').title()}**: {cant} documentos")
+    else:
+        st.info("Aún no se han generado documentos. Ve a **📄 Documentos** para empezar.")
+
+
+
     st.markdown("# Planes y precios")
     st.caption("Activa tu plan por WhatsApp. Activación en menos de 2 horas hábiles.")
     st.divider()
@@ -1130,7 +1309,7 @@ elif pagina == "💎  Planes":
                 st.markdown("<p style='text-align:center;color:#059669;font-size:.8rem'>"
                             "✅ Plan actual</p>", unsafe_allow_html=True)
             else:
-                msg = (f"Hola, quiero activar el plan {plan['nombre']} de GestorRH Colombia. "
+                msg = (f"Hola, quiero activar el plan {plan['nombre']} de Gestor RH IA. "
                        f"Mi correo es {u['email']}.")
                 st.link_button("💬 Activar por WhatsApp",
                     link_whatsapp(msg), use_container_width=True)

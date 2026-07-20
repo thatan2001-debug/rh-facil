@@ -1,5 +1,5 @@
 """
-Tokens de activación de cuenta para GestorRH Colombia.
+Tokens de activación de cuenta para Gestor RH IA.
 
 Flujo:
 1. Usuario se registra → se genera token de 6 dígitos + link con hash largo

@@ -15,7 +15,7 @@ Servicio externo que hace un ping cada 5 minutos a tu app, así nunca duerme.
 2. Clic en **"Add New Monitor"**
 3. Configura:
    - **Monitor Type:** HTTP(s)
-   - **Friendly Name:** GestorRH Colombia
+   - **Friendly Name:** Gestor RH IA
    - **URL:** `https://rh-facil.onrender.com`
    - **Monitoring Interval:** 5 minutes
 4. Guarda

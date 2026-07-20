@@ -1,5 +1,5 @@
 """
-Catálogo de documentos disponibles en GestorRH Colombia.
+Catálogo de documentos disponibles en Gestor RH IA.
 Define qué documentos existen, qué campos requieren, qué plan los habilita
 y qué plantilla PDF los genera.
 

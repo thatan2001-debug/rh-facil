@@ -1,5 +1,5 @@
 """
-Dashboard y pantalla unificada de generación de documentos para GestorRH Colombia.
+Dashboard y pantalla unificada de generación de documentos para Gestor RH IA.
 Integra: métricas reales, catálogo de documentos, historial y generación.
 """
 
@@ -420,16 +420,46 @@ def _mostrar_config_global(tipo_doc: str, carrito: dict):
             fc = st.date_input("Fecha de corte", date.today(), key="cfg_fc_liq")
         with c2:
             MOTIVOS = {
-                "renuncia":               "Renuncia voluntaria",
-                "despido_sin_justa_causa":"Despido sin justa causa (Art.64 CST)",
-                "mutuo_acuerdo":          "Mutuo acuerdo",
-                "vencimiento_contrato":   "Vencimiento de contrato",
+                "renuncia":                "Renuncia voluntaria (sin indemnización)",
+                "con_justa_causa":         "Despido con justa causa (Art. 62 CST)",
+                "despido_sin_justa_causa": "Despido SIN justa causa (Art. 64 CST) — con indemnización",
+                "mutuo_acuerdo":           "Terminación por mutuo acuerdo",
+                "vencimiento_contrato":    "Vencimiento contrato a término fijo",
+                "obra_terminada":          "Finalización de obra o labor",
+                "periodo_prueba":          "Terminación en período de prueba",
+                "jubilacion":              "Jubilación",
             }
-            motivo = st.selectbox("Motivo de retiro", list(MOTIVOS.keys()),
+            motivo = st.selectbox("Motivo de retiro *", list(MOTIVOS.keys()),
                 format_func=lambda x: MOTIVOS[x], key="cfg_motivo")
+
+        # Días pendientes para contratos fijos/obra (necesario para calcular indemnización)
+        emp_actual = list(carrito.values())[0].get("empleado", {}) if carrito else {}
+        tipo_c = str(emp_actual.get("tipo_contrato","indefinido")).lower()
+        dias_pendientes = 0
+        if motivo == "despido_sin_justa_causa" and ("fijo" in tipo_c or "obra" in tipo_c):
+            st.info(
+                f"📌 Contrato **{tipo_c}**: para calcular la indemnización correctamente "
+                f"necesitamos saber cuántos días faltaban para terminar el contrato/obra."
+            )
+            dias_pendientes = st.number_input(
+                "Días pendientes para terminar contrato u obra *",
+                min_value=0, step=1, value=0,
+                help="Ej: si el contrato fijo terminaba en 4 meses, ingresa 120 días",
+                key="cfg_dias_pend"
+            )
+
+        # Aviso legal según el motivo seleccionado
+        if motivo == "despido_sin_justa_causa":
+            st.warning("⚠️ Este motivo genera **INDEMNIZACIÓN** según Art. 64 CST.")
+        elif motivo == "con_justa_causa":
+            st.info("ℹ️ No genera indemnización, pero requiere debido proceso previo.")
+        elif motivo == "vencimiento_contrato":
+            st.info("ℹ️ Requiere preaviso de 30 días. Sin preaviso, se prorroga automáticamente.")
+
         for doc_e in carrito:
-            carrito[doc_e]["config"]["fecha_corte"]   = fc
-            carrito[doc_e]["config"]["motivo_retiro"] = motivo
+            carrito[doc_e]["config"]["fecha_corte"]    = fc
+            carrito[doc_e]["config"]["motivo_retiro"]  = motivo
+            carrito[doc_e]["config"]["dias_pendientes"] = dias_pendientes
 
     elif tipo_doc == "paz_salvo":
         obs = st.text_area("Observaciones (opcional)", key="cfg_obs_ps",
@@ -653,7 +683,8 @@ def _ejecutar_generacion_unificada(
                 })
                 fc_dt = datetime(fc.year, fc.month, fc.day)
                 res = calcular_liquidacion_fila(fila, fc_dt,
-                    motivo_retiro=conf.get("motivo_retiro","renuncia"))
+                    motivo_retiro=conf.get("motivo_retiro","renuncia"),
+                    dias_pendientes_fijo=conf.get("dias_pendientes", 0))
                 ruta = str(SALIDAS / f"Liquidacion_{nb}.pdf")
                 generar_liquidacion(res, datos_liq, ruta, disenio,
                     usar_mda, membrete, True, usar_logo)

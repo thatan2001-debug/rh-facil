@@ -1,5 +1,5 @@
 -- ================================================================
--- GestorRH Colombia — Schema Supabase v2 (COMPLETO con RLS y historial)
+-- Gestor RH IA — Schema Supabase v2 (COMPLETO con RLS y historial)
 -- 
 -- INSTRUCCIONES:
 -- 1. Ve a supabase.com → tu proyecto → SQL Editor → New Query
@@ -261,7 +261,7 @@ values
    encode(digest('GestorRHCol2026', 'sha256'), 'hex'),
    'pro', true, false, true),
   ('admin@gestorrh.co',
-   'Administrador GestorRH Colombia',
+   'Administrador Gestor RH IA',
    encode(digest('Admin2026*', 'sha256'), 'hex'),
    'empresarial', true, true, false)
 on conflict (email) do nothing;

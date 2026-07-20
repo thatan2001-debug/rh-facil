@@ -1,5 +1,5 @@
 """
-Historial de documentos generados — GestorRH Colombia.
+Historial de documentos generados — Gestor RH IA.
 Registra cada documento en Supabase con fallback JSON local.
 """
 

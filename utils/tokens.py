@@ -1,5 +1,5 @@
 """
-Sistema de tokens de activación de cuenta — GestorRH Colombia.
+Sistema de tokens de activación de cuenta — Gestor RH IA.
 Genera un token de 6 dígitos + enlace de activación y lo envía por correo.
 Los tokens expiran en 24 horas.
 """
@@ -210,7 +210,7 @@ def enviar_correo_activacion(email: str, nombre: str,
         )
 
     cfg = _cfg()
-    asunto = "🚀 Activa tu cuenta en GestorRH Colombia"
+    asunto = "🚀 Activa tu cuenta en Gestor RH IA"
 
     html = f"""
     <div style="font-family:-apple-system,Arial,sans-serif;max-width:600px;
@@ -218,7 +218,7 @@ def enviar_correo_activacion(email: str, nombre: str,
 
       <div style="background:linear-gradient(135deg,#1B3F6E,#2D6BE4);
           color:white;padding:32px 24px;border-radius:14px 14px 0 0;text-align:center">
-        <h1 style="margin:0;font-size:1.5rem">GestorRH Colombia</h1>
+        <h1 style="margin:0;font-size:1.5rem">Gestor RH IA</h1>
         <p style="margin:8px 0 0;opacity:.9;font-size:.95rem">
           Documentos laborales para PYMES colombianas
         </p>
@@ -274,21 +274,21 @@ def enviar_correo_activacion(email: str, nombre: str,
 
         <div style="border-top:1px solid #E5E7EB;margin-top:24px;padding-top:16px">
           <p style="color:#6B7280;font-size:.8rem;line-height:1.5;margin:0">
-            Si no te registraste en GestorRH Colombia, ignora este correo.
+            Si no te registraste en Gestor RH IA, ignora este correo.
             Nadie más puede acceder a tu cuenta sin este código.
           </p>
         </div>
       </div>
 
       <div style="text-align:center;padding:16px;color:#9CA3AF;font-size:.75rem">
-        © 2026 GestorRH Colombia · Medellín, Colombia<br>
+        © 2026 Gestor RH IA · Medellín, Colombia<br>
         Este es un correo automático, por favor no respondas.
       </div>
     </div>
     """
 
     texto_plano = f"""
-Bienvenido a GestorRH Colombia, {nombre}!
+Bienvenido a Gestor RH IA, {nombre}!
 
 Para activar tu cuenta tienes dos opciones:
 
@@ -303,7 +303,7 @@ Este código expira en 24 horas.
 
 Si no te registraste, ignora este correo.
 
-© 2026 GestorRH Colombia
+© 2026 Gestor RH IA
 """
 
     try:
