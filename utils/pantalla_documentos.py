@@ -187,6 +187,24 @@ def pantalla_generar(usuario: dict, datos_empresa: dict):
     # Preselección desde dashboard
     presel = st.session_state.pop("doc_preseleccionado", None)
 
+    # Auto-cargar empleado si viene de acción rápida
+    emp_rapido = st.session_state.pop("accion_rapida_empleado", None)
+    if emp_rapido and presel:
+        # Inicializar carrito si no existe
+        if "carrito_docs" not in st.session_state:
+            st.session_state.carrito_docs = {}
+        # Agregar el empleado con el tipo de documento pre-seleccionado
+        doc_e = emp_rapido.get("documento","")
+        st.session_state.carrito_docs[doc_e] = {
+            "empleado": emp_rapido,
+            "tipo_doc": presel,
+            "config":   _config_default(emp_rapido, presel),
+        }
+        st.success(
+            f"✅ Empleado **{emp_rapido.get('nombre','')}** cargado. "
+            f"Configura los detalles y genera."
+        )
+
     categorias = obtener_por_categoria()
     tipo_seleccionado = st.session_state.get("tipo_doc_sel", presel or "certificado_con_salario")
 
@@ -342,18 +360,23 @@ def pantalla_generar(usuario: dict, datos_empresa: dict):
         if archivos and descargar:
             empresa_nb = datos_empresa.get("nombre","empresa").replace(" ","_")
             # Adaptativo: PDF único si es uno solo, ZIP si son varios
+            st.caption(f"📦 {len(archivos)} archivo(s) generado(s)")
             if len(archivos) == 1:
                 ruta_unica = archivos[0]
                 if Path(ruta_unica).exists():
                     with open(ruta_unica, "rb") as f:
-                        st.download_button(
-                            f"⬇️ Descargar {Path(ruta_unica).name}",
-                            f.read(),
-                            file_name=Path(ruta_unica).name,
-                            mime="application/pdf",
-                            type="primary",
-                            use_container_width=True,
-                        )
+                        pdf_bytes = f.read()
+                    st.download_button(
+                        f"⬇️ Descargar {Path(ruta_unica).name}",
+                        pdf_bytes,
+                        file_name=Path(ruta_unica).name,
+                        mime="application/pdf",
+                        type="primary",
+                        use_container_width=True,
+                        key=f"dl_pdf_unico_{Path(ruta_unica).stem}"
+                    )
+                else:
+                    st.error(f"❌ El archivo no existe en disco: {ruta_unica}")
             else:
                 buf = io.BytesIO()
                 with zipfile.ZipFile(buf, "w") as zf:
@@ -363,10 +386,11 @@ def pantalla_generar(usuario: dict, datos_empresa: dict):
                 st.download_button(
                     f"⬇️ Descargar {len(archivos)} documentos (ZIP)",
                     buf, mime="application/zip", type="primary",
-                    file_name=f"GestorRHCol_{empresa_nb}_{date.today()}.zip",
+                    file_name=f"GestorRHIA_{empresa_nb}_{date.today()}.zip",
                     use_container_width=True,
+                    key="dl_zip_multi"
                 )
-            if st.button("🗑️ Nueva generación"):
+            if st.button("🗑️ Nueva generación", key="btn_nueva_gen"):
                 st.session_state.carrito_docs = {}
                 st.rerun()
 
@@ -672,6 +696,15 @@ def _ejecutar_generacion_unificada(
             elif tipo_doc == "liquidacion_prestaciones":
                 import pandas as pd
                 fc = conf.get("fecha_corte", date.today())
+                motivo_usado = conf.get("motivo_retiro", "renuncia")
+                dias_pend = int(conf.get("dias_pendientes", 0) or 0)
+
+                # ✅ Mensaje diagnóstico visible: muestra qué motivo se está usando
+                st.info(
+                    f"🔍 **Liquidando a {nom}** con motivo: **{motivo_usado}** "
+                    + (f"· Días pendientes: {dias_pend}" if dias_pend > 0 else "")
+                )
+
                 fila = pd.Series({
                     "Nombre": nom, "Documento": doc_e,
                     "Cargo": emp.get("cargo",""),
@@ -683,8 +716,19 @@ def _ejecutar_generacion_unificada(
                 })
                 fc_dt = datetime(fc.year, fc.month, fc.day)
                 res = calcular_liquidacion_fila(fila, fc_dt,
-                    motivo_retiro=conf.get("motivo_retiro","renuncia"),
-                    dias_pendientes_fijo=conf.get("dias_pendientes", 0))
+                    motivo_retiro=motivo_usado,
+                    dias_pendientes_fijo=dias_pend)
+
+                # ✅ Verificar el cálculo antes de generar PDF
+                indem_calc = res.get("Indemnizacion (Art. 64 CST)", 0)
+                if indem_calc > 0:
+                    st.success(f"✅ Indemnización calculada: **${indem_calc:,.0f}** COP".replace(",","."))
+                elif motivo_usado == "despido_sin_justa_causa":
+                    st.error(
+                        f"⚠️ Motivo '{motivo_usado}' pero indemnización = $0. "
+                        f"Detalle: {res.get('Indemnizacion detalle','')}"
+                    )
+
                 ruta = str(SALIDAS / f"Liquidacion_{nb}.pdf")
                 generar_liquidacion(res, datos_liq, ruta, disenio,
                     usar_mda, membrete, True, usar_logo)

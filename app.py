@@ -410,8 +410,8 @@ with st.sidebar:
     # CSS para botones grandes tipo tarjeta con contraste
     st.markdown("""
     <style>
-    /* Botones del sidebar — versión mejorada con contraste */
-    div[data-testid="stSidebar"] .stButton > button {
+    /* Botones del sidebar — texto visible siempre */
+    section[data-testid="stSidebar"] div.stButton > button {
         text-align: left !important;
         justify-content: flex-start !important;
         font-size: 0.98rem !important;
@@ -420,24 +420,34 @@ with st.sidebar:
         border-radius: 10px !important;
         font-weight: 600 !important;
         transition: all 0.2s ease !important;
+        width: 100% !important;
     }
-    /* Botón inactivo (secondary): fondo oscuro, texto BLANCO visible */
-    div[data-testid="stSidebar"] .stButton > button[kind="secondary"] {
-        background: rgba(255, 255, 255, 0.08) !important;
-        color: #FFFFFF !important;
-        border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    /* Botón INACTIVO: fondo BLANCO, texto AZUL OSCURO (alto contraste) */
+    section[data-testid="stSidebar"] div.stButton > button[kind="secondary"],
+    section[data-testid="stSidebar"] div.stButton > button:not([kind="primary"]) {
+        background: #FFFFFF !important;
+        color: #1B3F6E !important;
+        border: 2px solid #E5E7EB !important;
     }
-    div[data-testid="stSidebar"] .stButton > button[kind="secondary"]:hover {
-        background: rgba(255, 255, 255, 0.18) !important;
-        border-color: rgba(255, 255, 255, 0.35) !important;
+    section[data-testid="stSidebar"] div.stButton > button[kind="secondary"] *,
+    section[data-testid="stSidebar"] div.stButton > button:not([kind="primary"]) * {
+        color: #1B3F6E !important;
+    }
+    section[data-testid="stSidebar"] div.stButton > button[kind="secondary"]:hover,
+    section[data-testid="stSidebar"] div.stButton > button:not([kind="primary"]):hover {
+        background: #EFF6FF !important;
+        border-color: #2D6BE4 !important;
         transform: translateX(2px) !important;
     }
-    /* Botón activo (primary): azul brillante, texto blanco */
-    div[data-testid="stSidebar"] .stButton > button[kind="primary"] {
+    /* Botón ACTIVO (primary): fondo AZUL DEGRADADO, texto BLANCO */
+    section[data-testid="stSidebar"] div.stButton > button[kind="primary"] {
         background: linear-gradient(135deg, #2D6BE4, #1B3F6E) !important;
         color: #FFFFFF !important;
         border: none !important;
         box-shadow: 0 4px 12px rgba(45, 107, 228, 0.4) !important;
+    }
+    section[data-testid="stSidebar"] div.stButton > button[kind="primary"] * {
+        color: #FFFFFF !important;
     }
 
     /* Pestañas (st.tabs) con mejor visual */
@@ -567,6 +577,7 @@ if pagina == "🏠  Inicio":
 
     # ── Botones rápidos ────────────────────────────────────────────────
     st.markdown("### ⚡ Acciones rápidas")
+    st.caption("Genera documentos rápidamente seleccionando el empleado")
     b1, b2, b3, b4, b5 = st.columns(5)
     with b1:
         if st.button("➕ Registrar empleado", use_container_width=True,
@@ -577,25 +588,82 @@ if pagina == "🏠  Inicio":
     with b2:
         if st.button("📋 Crear certificado", use_container_width=True,
                      key="btn_cert"):
-            st.session_state["ir_a"] = "📄  Documentos"
-            st.session_state["doc_preseleccionado"] = "certificado_con_salario"
+            st.session_state["accion_rapida"] = "certificado_con_salario"
             st.rerun()
     with b3:
         if st.button("💰 Calcular liquidación", use_container_width=True,
                      key="btn_liq"):
-            st.session_state["ir_a"] = "💰  Liquidaciones"
+            st.session_state["accion_rapida"] = "liquidacion_prestaciones"
             st.rerun()
     with b4:
         if st.button("🏖️ Generar vacaciones", use_container_width=True,
                      key="btn_vac"):
-            st.session_state["ir_a"] = "📄  Documentos"
-            st.session_state["doc_preseleccionado"] = "carta_vacaciones"
+            st.session_state["accion_rapida"] = "carta_vacaciones"
             st.rerun()
     with b5:
         if st.button("📊 Ver reportes", use_container_width=True,
                      key="btn_rep"):
             st.session_state["ir_a"] = "📊  Reportes"
             st.rerun()
+
+    # ── Modal de acción rápida ────────────────────────────────────────
+    accion = st.session_state.get("accion_rapida")
+    if accion:
+        NOMBRES = {
+            "certificado_con_salario":  "📋 Certificado laboral con salario",
+            "carta_vacaciones":         "🏖️ Carta de vacaciones",
+            "liquidacion_prestaciones": "💰 Liquidación de prestaciones",
+        }
+        st.divider()
+        st.markdown(f"### {NOMBRES.get(accion, accion)}")
+
+        if not empleados_all:
+            st.warning("No tienes empleados registrados aún. Registra uno primero.")
+            if st.button("← Cerrar", key="close_no_emp"):
+                del st.session_state["accion_rapida"]
+                st.rerun()
+        else:
+            # Filtro por tipo de documento
+            if accion == "liquidacion_prestaciones":
+                # Solo empleados activos (los retirados ya fueron liquidados)
+                emps_disponibles = [e for e in empleados_all if e.get("activo", True)]
+                if not emps_disponibles:
+                    st.warning("Todos los empleados están retirados. No hay liquidaciones pendientes.")
+            else:
+                emps_disponibles = empleados_all
+
+            if emps_disponibles:
+                # Selector de empleado por nombre
+                opciones_emp = {
+                    e.get("documento",""): f"{e.get('nombre','')} · {e.get('cargo','')} · CC {e.get('documento','')}"
+                    for e in emps_disponibles
+                }
+                doc_seleccionado = st.selectbox(
+                    "👤 Selecciona el empleado",
+                    list(opciones_emp.keys()),
+                    format_func=lambda x: opciones_emp[x],
+                    key="selectbox_accion_rapida"
+                )
+
+                # Ir al flujo completo
+                cc1, cc2 = st.columns(2)
+                with cc1:
+                    if st.button("🚀 Continuar", type="primary",
+                                 use_container_width=True, key="ir_flujo_rapido"):
+                        # Cargar el empleado en el carrito
+                        emp_sel = next(e for e in emps_disponibles
+                                       if e.get("documento","") == doc_seleccionado)
+                        st.session_state["accion_rapida_empleado"] = emp_sel
+                        st.session_state["accion_rapida_doc"] = accion
+                        st.session_state["ir_a"] = "📄  Documentos"
+                        st.session_state["doc_preseleccionado"] = accion
+                        del st.session_state["accion_rapida"]
+                        st.rerun()
+                with cc2:
+                    if st.button("← Cancelar", use_container_width=True,
+                                 key="cancel_accion_rapida"):
+                        del st.session_state["accion_rapida"]
+                        st.rerun()
 
     st.divider()
 
