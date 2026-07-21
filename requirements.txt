@@ -1,7 +1,37 @@
-streamlit>=1.32
-pandas>=2.0
-openpyxl>=3.1
-reportlab>=4.0
-pillow>=10.0
-supabase>=2.0
-python-docx>=1.0
+# ═══════════════════════════════════════════════════════════════════════════
+# Gestor RH IA — Dependencias de Python
+# ═══════════════════════════════════════════════════════════════════════════
+# Actualizado: 2026-07-20 (S2.1 — Fundamentos de seguridad)
+#
+# Para instalar en desarrollo:
+#   pip install -r requirements.txt
+# ═══════════════════════════════════════════════════════════════════════════
+
+# ── Framework de la app ────────────────────────────────────────────────────
+streamlit>=1.32,<2.0
+
+# ── Procesamiento de datos ─────────────────────────────────────────────────
+pandas>=2.0,<3.0
+openpyxl>=3.1,<4.0
+
+# ── Generación de documentos ───────────────────────────────────────────────
+reportlab>=4.0,<5.0     # PDFs actuales
+pillow>=10.0,<12.0      # imágenes en PDFs
+python-docx>=1.0,<2.0   # DOCX (para etapa posterior de motor de plantillas)
+
+# ── Base de datos ──────────────────────────────────────────────────────────
+supabase>=2.0,<3.0
+
+# ── SEGURIDAD (S2.1+) ──────────────────────────────────────────────────────
+argon2-cffi>=23.1,<25.0     # hash de contraseñas moderno (reemplaza SHA-256)
+python-dotenv>=1.0,<2.0     # carga de .env en desarrollo
+email-validator>=2.1,<3.0   # validación de correos
+
+# ── Testing ────────────────────────────────────────────────────────────────
+pytest>=8.0,<9.0
+
+# ═══════════════════════════════════════════════════════════════════════════
+# NOTAS:
+# - Todas las versiones tienen un rango <mayor+1 para evitar breaking changes
+# - Antes de actualizar a una nueva mayor, correr todos los tests
+# ═══════════════════════════════════════════════════════════════════════════
