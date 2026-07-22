@@ -4,7 +4,7 @@ Usa Supabase (PostgreSQL) si las variables de entorno están configuradas.
 Fallback transparente a JSON local si no lo están (desarrollo/demo).
 """
 
-import os, json, hashlib
+import os, json
 from datetime import datetime
 from pathlib import Path
 
@@ -26,29 +26,15 @@ def _get_client():
         print(f"Supabase no disponible: {e}")
         return None
 
-def _hash(pw: str) -> str:
-    return hashlib.sha256(pw.encode()).hexdigest()
-
 def supabase_activo() -> bool:
     return _get_client() is not None
 
 # ── Fallback JSON ─────────────────────────────────────────────────────────────
+# ⚠️ IMPORTANTE (S2.3, julio 2026): sin usuarios hardcoded.
+# Primer admin se crea con: python scripts/crear_primer_admin.py
 _JSON_PATH = Path("salidas/.usuarios.json")
 
-USUARIOS_INICIALES = {
-    "demo@gestorrh.co": {
-        "nombre": "Usuario Demo", "password_hash": _hash("GestorRHCol2026"),
-        "plan": "pro", "documentos_usados": 0, "activo": True,
-        "es_admin": False, "es_demo": True, "empresa": "",
-        "empresa_config": {}
-    },
-    "admin@gestorrh.co": {
-        "nombre": "Administrador", "password_hash": _hash("Admin2026*"),
-        "plan": "empresarial", "documentos_usados": 0, "activo": True,
-        "es_admin": True, "es_demo": False, "empresa": "",
-        "empresa_config": {}
-    },
-}
+USUARIOS_INICIALES = {}  # Vacío — sin credenciales por defecto
 
 def _json_load() -> dict:
     if _JSON_PATH.exists():

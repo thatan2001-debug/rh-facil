@@ -193,7 +193,24 @@ Si encuentras una vulnerabilidad de seguridad:
 | Fecha | Sub-etapa | Cambio |
 |---|---|---|
 | 2026-07-20 | S2.1 | `.env.example` + `.gitignore` + `config/settings.py` + este documento |
-| Pendiente | S2.2 | Argon2 con retrocompatibilidad SHA-256 |
-| Pendiente | S2.3 | Eliminar credenciales hardcoded, script de primer admin |
-| Pendiente | S2.4 | Rate limiting en login |
-| Pendiente | S2.5 | Bloqueo de fallback JSON en producción |
+| 2026-07-21 | S2.2 | ✅ Argon2 con retrocompatibilidad SHA-256 (`services/auth_service.py`) |
+| 2026-07-21 | S2.3 | ✅ Eliminadas credenciales hardcoded, script `crear_primer_admin.py` |
+| 2026-07-21 | S2.4 | ✅ Rate limiting en login (`services/rate_limit_service.py`) |
+| 2026-07-21 | S2.5 | ✅ Bloqueo de arranque en producción sin Supabase |
+
+## 11. Tests de seguridad
+
+Todos los tests se ejecutan localmente:
+
+```bash
+# Tests unitarios de auth_service (21 tests)
+python tests/test_auth_service.py
+
+# Tests unitarios de configuración (12 tests)
+python tests/test_settings.py
+
+# Tests de cálculos legales (17 tests)
+python tests/test_calculos.py
+```
+
+**Estado actual (S2.5):** 50/50 tests pasando.

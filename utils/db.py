@@ -48,7 +48,7 @@ alter table historial_docs disable row level security;
 ──────────────────────────────────────────────────
 """
 
-import os, json, hashlib
+import os, json
 from datetime import datetime
 from pathlib import Path
 
@@ -73,27 +73,19 @@ def supabase_ok() -> bool:
     return bool(os.getenv("SUPABASE_URL") and os.getenv("SUPABASE_KEY"))
 
 # ── Fallback JSON ─────────────────────────────────────────────────────────────
+# ⚠️ IMPORTANTE (S2.3, julio 2026): ya NO hay usuarios hardcoded.
+# El primer administrador se crea con: python scripts/crear_primer_admin.py
 _JP = Path("salidas/.usuarios.json")
-_DEMO = {
-    "demo@gestorrh.co": {
-        "nombre":"Usuario Demo","plan":"pro","activo":True,
-        "activado_admin":True,"es_demo":True,"es_admin":False,"docs_usados":0,
-        "password_hash":hashlib.sha256(b"GestorRHCol2026").hexdigest(),"empresa_config":None,
-    },
-    "admin@gestorrh.co": {
-        "nombre":"Administrador","plan":"empresarial","activo":True,
-        "activado_admin":True,"es_demo":False,"es_admin":True,"docs_usados":0,
-        "password_hash":hashlib.sha256(b"Admin2026*").hexdigest(),"empresa_config":None,
-    },
-}
+
 def _jl():
     if _JP.exists():
         try:
             with open(_JP) as f: return json.load(f)
         except: pass
+    # Sin datos por defecto — archivo vacío hasta que se cree un usuario
     _JP.parent.mkdir(exist_ok=True)
-    with open(_JP,"w") as f: json.dump(_DEMO, f, indent=2)
-    return _DEMO.copy()
+    with open(_JP,"w") as f: json.dump({}, f, indent=2)
+    return {}
 def _js(d):
     _JP.parent.mkdir(exist_ok=True)
     with open(_JP,"w") as f: json.dump(d, f, indent=2, ensure_ascii=False)

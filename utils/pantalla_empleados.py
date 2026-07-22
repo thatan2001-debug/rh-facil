@@ -25,17 +25,13 @@ PLANTILLA_EXCEL = Path("plantillas/Base_Empleados.xlsx")
 def pantalla_empleados(email: str):
     """Renderiza la pantalla completa de empleados."""
 
-    tab_base, tab_buscar, tab_nuevo = st.tabs([
+    tab_base, tab_nuevo = st.tabs([
         "📋 Base de empleados",
-        "🔍 Buscar y generar documentos",
         "➕ Agregar / Editar empleado",
     ])
 
     with tab_base:
         _tab_base(email)
-
-    with tab_buscar:
-        _tab_buscar(email)
 
     with tab_nuevo:
         _tab_nuevo_empleado(email)
@@ -105,13 +101,6 @@ def _tab_base(email: str):
     st.caption(f"Mostrando {len(empleados)} empleado(s)")
 
     # Tabla de empleados
-    # Aviso visual para que el usuario sepa que hay botones dentro
-    if empleados:
-        st.info(
-            "💡 **Haz clic en cualquier empleado** para ver las acciones disponibles: "
-            "Editar · 📄 Docs · 📝 Contrato · ✍️ Otrosí · 🔴 Retirar"
-        )
-
     for i, emp in enumerate(empleados):
         activo = emp.get("activo", True)
         ing_var = float(emp.get("ingreso_promedio_variable", 0) or 0)
@@ -145,46 +134,16 @@ def _tab_base(email: str):
                 """)
             with c3:
                 doc = emp.get("documento","")
-                # Editar
+                # Solo botón Editar en el desplegable — todo lo demás se hace desde
+                # la sección "📄 Documentos" del sidebar
                 if st.button("✏️ Editar", key=f"edit_{doc}",
-                             use_container_width=True):
+                             use_container_width=True, type="primary"):
                     st.session_state["emp_editar"] = emp
                     st.session_state["emp_tab"] = "editar"
                     st.rerun()
-                # Agregar al carrito de generación
-                if activo:
-                    if st.button("📄 Docs", key=f"gen_{doc}",
-                                 use_container_width=True, type="primary"):
-                        _agregar_al_carrito(emp)
-                        st.rerun()
-                    # Generar contrato directo
-                    if st.button("📝 Contrato", key=f"contrato_{doc}",
-                                 use_container_width=True):
-                        st.session_state["emp_contrato"] = emp
-                        st.rerun()
-                    # Generar otrosí
-                    if st.button("✍️ Otrosí", key=f"otrosi_{doc}",
-                                 use_container_width=True):
-                        st.session_state["emp_otrosi"] = emp
-                        st.rerun()
-                    # Carta de terminación
-                    if st.button("📮 Terminación", key=f"term_{doc}",
-                                 use_container_width=True):
-                        st.session_state["emp_terminacion"] = emp
-                        st.rerun()
-                # Retirar / Eliminar
-                if activo:
-                    if st.button("🔴 Retirar", key=f"ret_{doc}",
-                                 use_container_width=True):
-                        empleado_desactivar(email, doc)
-                        st.rerun()
-                else:
-                    if st.button("🗑️ Eliminar", key=f"del_{doc}",
-                                 use_container_width=True):
-                        empleado_eliminar(email, doc)
-                        st.rerun()
 
     # ── Modales de Contrato, Otrosí y Terminación ────────────────────────
+    # (se abren desde botones en otras partes de la app)
     if st.session_state.get("emp_contrato"):
         _modal_contrato(email, st.session_state["emp_contrato"])
 
@@ -523,7 +482,7 @@ def _mostrar_carrito_resumen():
     st.divider()
     st.markdown(
         f"🛒 **Carrito de generación:** {len(carrito)} empleado(s) · "
-        f"Ve a la pestaña **🔍 Buscar y generar** para configurar y generar."
+        f"Ve a **📄 Documentos** en el menú para generar."
     )
 
 
@@ -633,7 +592,7 @@ def _ejecutar_generacion(email: str, enviar_correo: bool):
 
         # Envío por correo
         if enviar_correo and pdfs_empleado:
-            correo_dest = emp.get("correo","").strip()
+            correo_dest = (emp.get("correo") or "").strip()
             if correo_dest and "@" in correo_dest:
                 try:
                     enviar_documentos(correo_dest, nombre,
@@ -810,7 +769,7 @@ def _ejecutar_contrato_directo(email: str, emp: dict, tipo: str, cfg: dict):
     }
 
     SALIDAS = Path("salidas"); SALIDAS.mkdir(exist_ok=True)
-    nb = emp.get("nombre","empleado").strip().replace(" ","_")
+    nb = (emp.get("nombre") or "empleado").strip().replace(" ","_")
     disenio  = st.session_state.get("disenio_seleccionado", 1)
     usar_mda = st.session_state.get("usar_marca_agua", False)
     usar_logo= st.session_state.get("usar_logo_enc", True)
@@ -983,7 +942,7 @@ def _ejecutar_otrosi(email: str, emp: dict, cfg: dict):
     }
 
     SALIDAS = Path("salidas"); SALIDAS.mkdir(exist_ok=True)
-    nb = emp.get("nombre","empleado").strip().replace(" ","_")
+    nb = (emp.get("nombre") or "empleado").strip().replace(" ","_")
     disenio  = st.session_state.get("disenio_seleccionado", 1)
     usar_mda = st.session_state.get("usar_marca_agua", False)
     usar_logo= st.session_state.get("usar_logo_enc", True)
@@ -1141,7 +1100,7 @@ def _ejecutar_terminacion_directa(email: str, emp: dict, cfg: dict):
     }
 
     SALIDAS = Path("salidas"); SALIDAS.mkdir(exist_ok=True)
-    nb = emp.get("nombre","empleado").strip().replace(" ","_")
+    nb = (emp.get("nombre") or "empleado").strip().replace(" ","_")
     disenio  = st.session_state.get("disenio_seleccionado", 1)
     usar_mda = st.session_state.get("usar_marca_agua", False)
     usar_logo= st.session_state.get("usar_logo_enc", True)

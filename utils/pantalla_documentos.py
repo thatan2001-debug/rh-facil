@@ -669,7 +669,8 @@ def _ejecutar_generacion_unificada(
         }
 
         # Si el empleado ya se retiró y pidieron cert con salario, usar sin salario
-        empleado_retirado = bool(emp.get("fecha_retiro","").strip())
+        fecha_ret_raw = emp.get("fecha_retiro") or ""  # None → ""
+        empleado_retirado = bool(str(fecha_ret_raw).strip())
         tipo_efectivo = tipo_doc
         if tipo_doc == "certificado_con_salario" and empleado_retirado:
             tipo_efectivo = "certificado_sin_salario"
@@ -869,7 +870,7 @@ def _ejecutar_generacion_unificada(
 
                 # Envío por correo
                 if enviar:
-                    correo_dest = emp.get("correo","").strip()
+                    correo_dest = (emp.get("correo") or "").strip()
                     if correo_dest and "@" in correo_dest:
                         tipo_nb = NOMBRES_DOCUMENTO.get(tipo_doc, tipo_doc)
                         ok_m, _ = enviar_documentos(
