@@ -152,7 +152,25 @@ def pantalla_auth():
                 ok, msg, datos = usuario_login(email_l, pass_l)
                 if ok:
                     st.session_state.usuario = datos
-                    # Cargar empresa guardada
+
+                    # ─── Etapa 4: Cargar perfil y empresas del sistema nuevo ───
+                    try:
+                        from services.perfil_service import perfil_service
+                        from utils.selector_empresa import cargar_empresas_del_usuario
+
+                        perfil = perfil_service.obtener_por_email(email_l)
+                        if perfil:
+                            st.session_state.usuario["perfil_id"] = perfil["id"]
+                            st.session_state.usuario["es_superadmin"] = perfil.get("es_superadmin", False)
+                            # Registrar el login
+                            perfil_service.registrar_login(perfil["id"])
+                            # Cargar sus empresas
+                            cargar_empresas_del_usuario()
+                    except Exception:
+                        # Si algo falla, el usuario sigue con el flujo legacy
+                        pass
+
+                    # Cargar empresa guardada (legacy — se usa como fallback)
                     empresa = empresa_cargar(email_l)
                     if empresa:
                         st.session_state.datos_empresa = {
@@ -369,6 +387,48 @@ if not st.session_state.usuario:
 
 u = st.session_state.usuario
 
+# ═══════════════════════════════════════════════════════════════════════════
+# ETAPA 4 — Selector de empresa (si el usuario tiene más de una)
+# ═══════════════════════════════════════════════════════════════════════════
+# Este bloque es NO-BLOQUEANTE en modo legacy: si el usuario no está en el
+# nuevo sistema de multiempresa (no tiene perfil_id), el selector se salta.
+try:
+    if u.get("perfil_id") and not u.get("es_admin"):
+        # Solo aplicar selector si estamos en el sistema nuevo
+        from utils.selector_empresa import (
+            mostrar_selector_si_necesario,
+            obtener_empresa_activa,
+        )
+
+        if mostrar_selector_si_necesario():
+            st.stop()
+
+        # Actualizar datos_empresa con la empresa activa
+        activa = obtener_empresa_activa()
+        if activa and activa.get("id"):
+            # Sincronizar los datos de la empresa activa con datos_empresa
+            from services.empresa_service import empresa_service
+            emp_full = empresa_service.obtener(activa["id"])
+            if emp_full:
+                st.session_state.datos_empresa.update({
+                    "nombre":         emp_full.get("razon_social", ""),
+                    "nit":            emp_full.get("nit", ""),
+                    "ciudad":         emp_full.get("ciudad", ""),
+                    "correo_empresa": emp_full.get("correo", ""),
+                    "telefono_empresa": emp_full.get("telefono", ""),
+                    "representante":  emp_full.get("representante_legal", ""),
+                    "logo_path":      emp_full.get("logo_url", ""),
+                    "membrete_path":  emp_full.get("membrete_url", ""),
+                    "_empresa_id":    activa["id"],  # Marker para servicios
+                })
+except Exception as e:
+    # Cualquier error → seguir con flujo legacy sin romper la app
+    try:
+        from utils.logs import log_warn
+        log_warn("selector_empresa.fallo", error=str(e))
+    except Exception:
+        pass
+
 # Mostrar onboarding si es primer ingreso y empresa no configurada
 if not u.get("onboarding_completo") and not u.get("es_admin"):
     pantalla_onboarding()
@@ -385,6 +445,15 @@ with st.sidebar:
     st.caption(f"Hola, **{u['nombre'].split()[0]}** 👋")
     if usar_supabase():
         st.caption("🟢 Base de datos activa")
+
+    # ─── Etapa 4: Widget de empresa activa ─────────────────────────
+    try:
+        if u.get("perfil_id"):
+            from utils.selector_empresa import mostrar_cambio_empresa_en_sidebar
+            mostrar_cambio_empresa_en_sidebar()
+    except Exception:
+        pass
+
     st.divider()
 
     nav_opciones = [
