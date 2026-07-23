@@ -1202,72 +1202,14 @@ elif pagina == "💰  Liquidaciones":
 # REPORTES Y DASHBOARD
 # ══════════════════════════════════════════════════════════════════════════════
 elif pagina == "📊  Reportes":
-    st.markdown("# 📊 Reportes")
-    st.caption("Métricas y análisis de tu operación de recursos humanos.")
-
-    from utils.empleados_db import empleados_listar
-    from utils.historial import obtener
-    empleados_all = empleados_listar(u["email"])
-    hist = obtener(u["email"], limite=1000)
-
-    # ── Métricas generales ─────────────────────────────────────────────
-    activos = [e for e in empleados_all if e.get("activo", True)]
-    retirados = [e for e in empleados_all if not e.get("activo", True)]
-
-    st.markdown("### 📈 Panorama general")
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("👥 Total empleados", len(empleados_all))
-    c2.metric("✅ Activos", len(activos))
-    c3.metric("⭕ Retirados", len(retirados))
-    c4.metric("📄 Documentos totales", len(hist))
-
-    st.divider()
-
-    # ── Distribución por tipo de contrato ──────────────────────────────
-    if activos:
-        st.markdown("### 📊 Distribución por tipo de contrato")
-        from collections import Counter
-        tipos = Counter(str(e.get("tipo_contrato","Sin definir")).capitalize() for e in activos)
-        c1, c2 = st.columns([2, 1])
-        with c1:
-            import pandas as pd
-            df_tipos = pd.DataFrame(list(tipos.items()), columns=["Tipo", "Cantidad"])
-            st.bar_chart(df_tipos.set_index("Tipo"))
-        with c2:
-            for tipo, cant in tipos.most_common():
-                st.metric(f"📝 {tipo}", cant)
-
-    st.divider()
-
-    # ── Costos laborales estimados ─────────────────────────────────────
-    st.markdown("### 💵 Costos laborales estimados (mensual)")
-    total_nomina = sum(float(e.get("salario", 0) or 0) for e in activos)
-    total_variable = sum(float(e.get("ingreso_promedio_variable", 0) or 0) for e in activos)
-    prestacional = total_nomina * 0.2135  # aprox 21.35% de prestaciones
-    total_carga = total_nomina + total_variable + prestacional
-
-    cc1, cc2, cc3 = st.columns(3)
-    cc1.metric("💰 Nómina fija", f"${total_nomina:,.0f}".replace(",","."))
-    cc2.metric("📊 Ingresos variables", f"${total_variable:,.0f}".replace(",","."))
-    cc3.metric("📋 Carga prestacional (~21.35%)", f"${prestacional:,.0f}".replace(",","."))
-
-    st.info(f"💼 **Costo laboral total estimado:** "
-            f"${total_carga:,.0f}".replace(",",".") + " COP mensuales")
-
-    st.divider()
-
-    # ── Documentos generados por tipo ──────────────────────────────────
-    if hist:
-        st.markdown("### 📄 Documentos generados por tipo")
-        from collections import Counter
-        tipos_doc = Counter(h.get("tipo_documento","otro") for h in hist)
-        for tipo, cant in tipos_doc.most_common():
-            st.markdown(f"- **{tipo.replace('_',' ').title()}**: {cant} documentos")
-    else:
-        st.info("Aún no se han generado documentos. Ve a **📄 Documentos** para empezar.")
+    from utils.reportes import mostrar_reportes
+    mostrar_reportes(u["email"])
 
 
-
+# ══════════════════════════════════════════════════════════════════════════════
+# PLANES
+# ══════════════════════════════════════════════════════════════════════════════
+elif pagina == "💎  Planes":
     st.markdown("# Planes y precios")
     st.caption("Activa tu plan por WhatsApp. Activación en menos de 2 horas hábiles.")
     st.divider()
@@ -1283,27 +1225,16 @@ elif pagina == "📊  Reportes":
             <div class="plan-card {'destacado' if key in ('basico','pro') else ''}">
                 <div style="font-weight:700;margin-bottom:.5rem">{plan['nombre']}</div>
                 <div class="plan-precio">{precio}</div>
-                <div class="plan-periodo">{periodo}</div>
-                <hr style="border-color:#E5E7EB;margin:.6rem 0">
-                {feats}
-            </div>""", unsafe_allow_html=True)
-            st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
-            if activo:
-                st.markdown("<p style='text-align:center;color:#059669;font-size:.8rem'>"
-                            "✅ Plan actual</p>", unsafe_allow_html=True)
-            else:
-                msg = (f"Hola, quiero activar el plan {plan['nombre']} de Gestor RH IA. "
-                       f"Mi correo es {u['email']}.")
-                st.link_button("💬 Activar por WhatsApp",
-                    link_whatsapp(msg), use_container_width=True)
-    st.divider()
-    st.markdown("<p style='text-align:center;color:#6B7280;font-size:.85rem'>"
-                "💳 Transferencia, Nequi y PSE · Cancela cuando quieras</p>",
-                unsafe_allow_html=True)
+                <div style="color:#6B7280;font-size:.85rem">{periodo}</div>
+                <div style="margin:1rem 0">{feats}</div>
+                {'<div style="color:#059669;font-weight:600">✓ Plan actual</div>' if activo else ''}
+            </div>
+            """, unsafe_allow_html=True)
 
-# ══════════════════════════════════════════════════════════════════════════════
-# ADMIN
-# ══════════════════════════════════════════════════════════════════════════════
+    st.divider()
+    st.info("💬 Contacta al administrador por WhatsApp para actualizar tu plan.")
+
+
 elif pagina == "🛡️  Admin" and u.get("es_admin"):
     st.markdown("# Panel de Administrador")
     stats = admin_stats()

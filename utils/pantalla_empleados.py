@@ -142,6 +142,16 @@ def _tab_base(email: str):
                     st.session_state["emp_tab"] = "editar"
                     st.rerun()
 
+                # Botón para ver historial
+                if st.button("📊 Historial", key=f"hist_{doc}",
+                             use_container_width=True):
+                    st.session_state["emp_ver_historial"] = emp
+                    st.rerun()
+
+    # ── Modal de historial ────────────────────────────────────────────────
+    if st.session_state.get("emp_ver_historial"):
+        _modal_historial(email, st.session_state["emp_ver_historial"])
+
     # ── Modales de Contrato, Otrosí y Terminación ────────────────────────
     # (se abren desde botones en otras partes de la app)
     if st.session_state.get("emp_contrato"):
@@ -1375,3 +1385,35 @@ def _ejecutar_terminacion_directa(email: str, emp: dict, cfg: dict):
             }
     except Exception as e:
         st.error(f"Error generando la carta de terminación: {e}")
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# MODAL: HISTORIAL VISUAL DEL EMPLEADO (Etapa Opción B)
+# ══════════════════════════════════════════════════════════════════════════════
+
+def _modal_historial(email: str, emp: dict):
+    """Muestra el historial visual del empleado con línea de tiempo."""
+    from utils.historial_visual import mostrar_historial_empleado
+
+    st.divider()
+
+    # Botón para cerrar
+    col_cerrar, _ = st.columns([1, 5])
+    with col_cerrar:
+        if st.button("← Cerrar historial", key="cerrar_historial",
+                      type="secondary"):
+            st.session_state.pop("emp_ver_historial", None)
+            st.rerun()
+
+    # Renderizar el historial
+    try:
+        mostrar_historial_empleado(email, emp, limite=100)
+    except Exception as e:
+        st.error(f"Error mostrando el historial: {e}")
+        try:
+            from utils.logs import log_error
+            log_error("historial_visual.error",
+                       email=email, empleado=emp.get("documento"),
+                       error=str(e))
+        except Exception:
+            pass
