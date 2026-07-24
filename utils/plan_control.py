@@ -156,6 +156,8 @@ def plan_permite_documento(plan: str, tipo_documento: str) -> bool:
 
 def plan_permite_empleado(plan: str, num_empleados_actuales: int) -> bool:
     """Verifica si el plan permite agregar más empleados."""
+    if _modo_beta_activo():
+        return True  # BETA: sin límites
     info = PLANES.get(plan, PLANES["gratuito"])
     limite = info.get("limite_empleados")
     if limite is None:
@@ -165,6 +167,8 @@ def plan_permite_empleado(plan: str, num_empleados_actuales: int) -> bool:
 
 def plan_permite_doc_mes(plan: str, docs_este_mes: int) -> tuple[bool, int | None]:
     """Verifica si el plan permite generar más documentos este mes."""
+    if _modo_beta_activo():
+        return True, None  # BETA: sin límites
     info = PLANES.get(plan, PLANES["gratuito"])
     limite = info.get("limite_docs_mes")
     if limite is None:
@@ -174,11 +178,19 @@ def plan_permite_doc_mes(plan: str, docs_este_mes: int) -> tuple[bool, int | Non
 
 def docs_restantes_totales(plan: str, docs_usados: int) -> int | None:
     """Retorna documentos restantes totales o None si no tiene límite."""
+    if _modo_beta_activo():
+        return None  # BETA: sin límites
     info = PLANES.get(plan, PLANES["gratuito"])
     limite = info.get("limite_total")
     if limite is None:
         return None
     return max(0, limite - docs_usados)
+
+
+def _modo_beta_activo() -> bool:
+    """True si el modo beta está activo (todos los límites desactivados)."""
+    import os
+    return os.getenv("MODO_BETA_SIN_LIMITES", "0").lower() in ("1", "true", "yes", "on")
 
 
 def obtener_limite_plan(plan: str) -> dict:

@@ -454,6 +454,14 @@ with st.sidebar:
     except Exception:
         pass
 
+    # ─── Modo beta: aviso visible ───────────────────────────────────
+    try:
+        from utils.plan_control import _modo_beta_activo
+        if _modo_beta_activo():
+            st.warning("🧪 **Modo Beta activo**\n\nTodos los documentos desbloqueados para pruebas. Los límites de plan están desactivados.", icon="🧪")
+    except Exception:
+        pass
+
     st.divider()
 
     nav_opciones = [
