@@ -18,6 +18,7 @@ openpyxl>=3.1,<4.0
 reportlab>=4.0,<5.0     # PDFs actuales
 pillow>=10.0,<12.0      # imágenes en PDFs
 python-docx>=1.0,<2.0   # DOCX (para etapa posterior de motor de plantillas)
+PyMuPDF>=1.24,<2.0      # conversión de PDF de una hoja a imagen (membretes)
 
 # ── Base de datos ──────────────────────────────────────────────────────────
 supabase>=2.0,<3.0

@@ -1,0 +1,94 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# Gestor RH IA — .gitignore
+# ═══════════════════════════════════════════════════════════════════════════
+
+# ── VARIABLES DE ENTORNO — NUNCA SUBIR ─────────────────────────────────────
+.env
+.env.local
+.env.*.local
+.env.production
+
+# ── PYTHON ─────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Entornos virtuales
+venv/
+env/
+ENV/
+.venv/
+.env-py311/
+
+# ── STREAMLIT ──────────────────────────────────────────────────────────────
+.streamlit/secrets.toml
+
+# ── DATOS SENSIBLES DEL PROYECTO ───────────────────────────────────────────
+# Archivos de fallback JSON con datos de usuarios reales
+salidas/.usuarios.json
+salidas/.tokens_activacion.json
+salidas/.uso_plan.json
+salidas/.historial.json
+
+# Logs con posibles datos sensibles
+salidas/logs.jsonl
+*.log
+
+# Archivos generados (PDF, ZIP, Excel de prueba)
+salidas/*.pdf
+salidas/*.zip
+salidas/*.xlsx
+salidas/test_*
+salidas/muestra_*
+salidas/preview_*
+
+# ── ASSETS DE USUARIOS ─────────────────────────────────────────────────────
+# Logos y membretes subidos por usuarios (contienen datos empresariales)
+assets/logo_*
+assets/membrete_*
+assets/plantilla_liq_*
+
+# ── EDITOR / IDE ───────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ── TESTS Y COVERAGE ───────────────────────────────────────────────────────
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+coverage.xml
+*.cover
+.hypothesis/
+
+# ── JUPYTER ────────────────────────────────────────────────────────────────
+.ipynb_checkpoints
+*.ipynb
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Si necesitas agregar algo específico de tu entorno local,
+# hazlo al final de este archivo o crea un .gitignore local en tu carpeta
+# ═══════════════════════════════════════════════════════════════════════════

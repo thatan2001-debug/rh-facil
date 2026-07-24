@@ -952,36 +952,109 @@ elif pagina == "🏢  Mi empresa":
                                type=["png","jpg","jpeg"])
 
         # ── Formatos personalizados ─────────────────────────────────────
-        with st.expander("📎 Formatos personalizados (opcional)", expanded=False):
-            st.caption(
-                "Sube tu propio membrete o plantilla de liquidación para que "
-                "los documentos tengan la identidad visual de tu empresa."
+        # ═══════════════════════════════════════════════════════════════════
+        # MODO DE GENERACIÓN DE PDF (nuevo)
+        # ═══════════════════════════════════════════════════════════════════
+        st.divider()
+        st.markdown("### 🎨 Modo de generación de PDF")
+        st.caption(
+            "Decide cómo se ven tus documentos. Puedes cambiarlo en cualquier momento."
+        )
+
+        modo_actual = de.get("modo_generacion", "diseño_automatico")
+        modo_seleccionado = st.radio(
+            "¿Cómo quieres que se generen los PDFs?",
+            options=["diseño_automatico", "solo_texto_membrete"],
+            format_func=lambda x: {
+                "diseño_automatico":    "🎨 Diseño automático (recomendado)",
+                "solo_texto_membrete":  "📄 Solo texto sobre mi membrete oficial",
+            }[x],
+            index=0 if modo_actual == "diseño_automatico" else 1,
+            key="modo_generacion_radio",
+            horizontal=False,
+        )
+
+        if modo_seleccionado == "diseño_automatico":
+            st.info(
+                "✨ **Diseño automático:** El sistema arma el PDF completo con encabezado, "
+                "logo, colores corporativos y pie de página. Ideal si no tienes membrete oficial."
             )
-            cc1, cc2 = st.columns(2)
-            with cc1:
-                st.markdown("**🎨 Membrete personalizado**")
-                st.caption("Imagen con el header/pie que aparecerá en todos los documentos")
-                membrete_up = st.file_uploader(
-                    "Membrete (PNG o JPG)",
-                    type=["png","jpg","jpeg"],
-                    key="up_membrete",
-                    help="Recomendado: 2550x300px (ancho carta). Se ubicará en la parte superior."
+        else:
+            st.info(
+                "📄 **Solo texto sobre membrete:** Subes tu formato oficial (JPG, PNG o PDF de "
+                "una página) y el sistema solo escribe el texto encima, respetando tu diseño. "
+                "Ideal para empresas con identidad visual establecida."
+            )
+
+        # ─── Uploader adaptado según modo ─────────────────────────────
+        if modo_seleccionado == "solo_texto_membrete":
+            st.markdown("**📎 Sube tu membrete oficial:**")
+            st.caption("Acepta JPG, PNG o PDF de una sola página. Máximo 10 MB.")
+
+            membrete_oficial_up = st.file_uploader(
+                "Membrete oficial",
+                type=["png", "jpg", "jpeg", "pdf"],
+                key="up_membrete_oficial",
+                help="Se usa como fondo de página completa. El texto del documento "
+                     "se escribirá encima respetando los márgenes."
+            )
+
+            # Verificar si ya tiene membrete oficial guardado
+            from utils.membretes import obtener_membrete_empresa
+            membrete_oficial_existente = obtener_membrete_empresa(u["email"])
+
+            if membrete_oficial_existente:
+                st.success("✅ Ya tienes un membrete oficial cargado")
+                col_prev, col_del = st.columns([3, 1])
+                with col_prev:
+                    try:
+                        st.image(membrete_oficial_existente, caption="Vista previa", width=300)
+                    except Exception:
+                        st.caption("No se pudo mostrar vista previa")
+                with col_del:
+                    if st.button("🗑️ Eliminar", key="del_membrete_oficial"):
+                        from utils.membretes import eliminar_membrete_empresa
+                        eliminar_membrete_empresa(u["email"])
+                        st.session_state["_eliminar_membrete_oficial"] = True
+                        st.rerun()
+        else:
+            membrete_oficial_up = None
+
+        # ─── Formatos personalizados (diseño automático) ──────────────
+        if modo_seleccionado == "diseño_automatico":
+            with st.expander("📎 Formatos personalizados (opcional)", expanded=False):
+                st.caption(
+                    "Sube tu propio membrete parcial o plantilla de liquidación para "
+                    "personalizar la identidad visual de tus documentos."
                 )
-                if de.get("membrete_path"):
-                    st.success("✅ Ya tienes membrete cargado")
-                    if st.checkbox("🗑️ Eliminar membrete actual", key="del_membrete"):
-                        st.session_state["_eliminar_membrete"] = True
-            with cc2:
-                st.markdown("**📊 Plantilla de liquidación**")
-                st.caption("Excel de referencia para tu formato interno de liquidaciones")
-                plantilla_liq_up = st.file_uploader(
-                    "Plantilla XLSX",
-                    type=["xlsx"],
-                    key="up_plantilla_liq",
-                    help="Se usará como base para exportar liquidaciones a Excel."
-                )
-                if de.get("plantilla_liq_path"):
-                    st.success("✅ Plantilla cargada")
+                cc1, cc2 = st.columns(2)
+                with cc1:
+                    st.markdown("**🎨 Membrete parcial**")
+                    st.caption("Imagen con el header/pie que aparecerá en la parte superior")
+                    membrete_up = st.file_uploader(
+                        "Membrete (PNG o JPG)",
+                        type=["png","jpg","jpeg"],
+                        key="up_membrete",
+                        help="Recomendado: 2550x300px (ancho carta)."
+                    )
+                    if de.get("membrete_path"):
+                        st.success("✅ Ya tienes membrete cargado")
+                        if st.checkbox("🗑️ Eliminar membrete actual", key="del_membrete"):
+                            st.session_state["_eliminar_membrete"] = True
+                with cc2:
+                    st.markdown("**📊 Plantilla de liquidación**")
+                    st.caption("Excel de referencia para tu formato interno")
+                    plantilla_liq_up = st.file_uploader(
+                        "Plantilla XLSX",
+                        type=["xlsx"],
+                        key="up_plantilla_liq",
+                        help="Se usará como base para exportar liquidaciones a Excel."
+                    )
+                    if de.get("plantilla_liq_path"):
+                        st.success("✅ Plantilla cargada")
+        else:
+            membrete_up = None
+            plantilla_liq_up = None
 
         st.divider()
         st.markdown("### ✍️ Responsables de firma")
@@ -1016,22 +1089,45 @@ elif pagina == "🏢  Mi empresa":
                 if st.session_state.get("_eliminar_membrete"):
                     membrete_path = None
                     st.session_state["_eliminar_membrete"] = False
-                if membrete_up:
+                if membrete_up is not None:
                     ext_m = membrete_up.name.split(".")[-1]
                     membrete_path = str(CARPETA_ASSETS / f"membrete_{u['email'].split('@')[0]}.{ext_m}")
                     with open(membrete_path,"wb") as f: f.write(membrete_up.getbuffer())
 
                 # Guardar plantilla de liquidación personalizada
                 plantilla_liq_path = de.get("plantilla_liq_path")
-                if plantilla_liq_up:
+                if plantilla_liq_up is not None:
                     plantilla_liq_path = str(CARPETA_ASSETS / f"plantilla_liq_{u['email'].split('@')[0]}.xlsx")
                     with open(plantilla_liq_path,"wb") as f: f.write(plantilla_liq_up.getbuffer())
+
+                # ─── Procesar membrete oficial (modo "solo texto") ───
+                membrete_oficial_path = None
+                if modo_seleccionado == "solo_texto_membrete":
+                    if membrete_oficial_up:
+                        # Guardar y procesar
+                        from utils.membretes import procesar_membrete
+                        ok_m, msg_m, ruta_m = procesar_membrete(
+                            membrete_oficial_up.getbuffer(),
+                            membrete_oficial_up.name,
+                            u["email"]
+                        )
+                        if ok_m:
+                            membrete_oficial_path = ruta_m
+                            st.success(f"📄 Membrete oficial cargado")
+                        else:
+                            st.error(f"Error con membrete oficial: {msg_m}")
+                    else:
+                        # Ya existía uno guardado
+                        from utils.membretes import obtener_membrete_empresa
+                        membrete_oficial_path = obtener_membrete_empresa(u["email"])
 
                 datos_nuevo = {
                     "nombre":nombre,"nit":nit,"representante":representante,
                     "correo_empresa":correo_emp,"ciudad":ciudad,
                     "telefono_empresa":tel_emp,"logo_path":logo_path,
                     "membrete_path":       membrete_path,
+                    "membrete_oficial_path": membrete_oficial_path,
+                    "modo_generacion":      modo_seleccionado,
                     "plantilla_liq_path":  plantilla_liq_path,
                     "firmante_cert_nombre": fcn.strip() or representante,
                     "firmante_cert_cargo":  fcc.strip() or "Representante Legal",
